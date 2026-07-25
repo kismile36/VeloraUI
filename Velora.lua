@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.2.3"
+Velora.Version = "1.2.4"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -3793,6 +3793,11 @@ function Section:AddToggle(first, second)
 		})
 		check.Text = value and "+" or ""
 	end
+	control._maid:Give(self._ui.ThemeChanged:Connect(function()
+		if not control._destroyed then
+			control:_render(control._value, nil, { Source = "theme" })
+		end
+	end))
 	control._maid:Give(hitbox.Activated:Connect(function()
 		if not control.Disabled then
 			control:Set(not control._value, { Source = "user" })
