@@ -6,13 +6,6 @@
       "Velora": {
         "$path": "Velora.lua"
       }
-    },
-    "StarterPlayer": {
-      "StarterPlayerScripts": {
-        "VeloraDemo": {
-          "$path": "examples/demo.client.lua"
-        }
-      }
     }
   }
 }

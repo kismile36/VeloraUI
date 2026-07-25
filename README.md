@@ -6,12 +6,13 @@ Velora UI 是一个从零实现的 Roblox 单文件 UI 库。它参考了 WindUI
 
 ## 功能
 
-- 响应式窗口：拖动边界、调整大小、最小化、关闭策略、桌面双栏、移动端单栏、控件上下重排与触屏恢复按钮。
+- 响应式窗口：无底部投影的干净描边、拖动边界、调整大小、最小化、关闭策略、桌面双栏、移动端单栏、控件上下重排与顶部悬浮恢复胶囊。
 - 完整控件：Button、Toggle/Checkbox、Slider、Input/Textbox、Dropdown、MultiDropdown、Keybind、ColorPicker、Segmented/Radio、Progress、Label、Paragraph、Divider、Spacer、Code、Image。
 - 统一句柄：值控件均支持 `Get`、`Set`、`Reset`、`OnChanged`、`SetDisabled`、`SetVisible`、`Highlight` 和 `Destroy`。
 - 中心状态：每个值控件使用唯一 `Flag`，支持 `GetFlag`、`SetFlag`、`Observe` 和全量 `GetFlags`。
-- 主题令牌：内置 Midnight、Light、Emerald、Rose、HighContrast，支持实时切换、自定义主题和 Accent。
-- 顶层浮层：Dropdown、颜色选择器、Dialog 与搜索不会被 Section 或 ScrollingFrame 裁切。
+- 主题令牌：内置 Midnight、Ocean、Violet、Emerald、Amber、Rose、Crimson、Nord、Cyber、Light、Sakura、Latte、HighContrast，支持实时切换、自定义主题和 Accent。
+- 顶层浮层：Dropdown、颜色选择器、Dialog、搜索与可拖动 OpenButton 不会被 Section 或 ScrollingFrame 裁切。
+- 现代排版：界面字体统一为 Builder Sans，代码区域使用 Roboto Mono，文本测量与实际渲染保持一致。
 - 全局搜索：`Ctrl + K` 搜索所有 Tab、控件、标题、描述和自定义命令，可直接跳转并高亮目标。
 - 通知系统：Info、Success、Warning、Error、Loading，支持去重、更新、最多三个等宽操作按钮、自动阅读时长和按屏幕高度控制并发。
 - 配置系统：JSON/table 导入导出，支持 Color3、透明度、Enum、Vector2/Vector3、CFrame、UDim2、自定义主题、窗口状态、待创建 Flag、自动保存防抖和配置列表。
@@ -28,7 +29,7 @@ local Velora = require(game:GetService("ReplicatedStorage"):WaitForChild("Velora
 local UI = Velora.new({ Theme = "Midnight" })
 ```
 
-项目包含 `default.project.json`，使用 Rojo 时可直接同步完整演示。
+项目包含 `default.project.json`，使用 Rojo 时可将 `Velora.lua` 同步为 `ReplicatedStorage.Velora`。`examples/demo.client.lua` 按你的要求仅使用远程 `loadstring`，不会被 Rojo 自动挂载为 Studio LocalScript。
 
 ## 单文件加载
 
@@ -41,6 +42,13 @@ local UI = Velora.new({
     Theme = "Midnight",
     ToggleKey = Enum.KeyCode.RightShift,
     IgnoreGuiInset = false,
+    OpenButton = {
+        Title = "Open Velora",
+        Icon = "V",
+        Draggable = true,
+        OnlyIcon = false,
+        OnlyMobile = false,
+    },
 })
 ```
 
@@ -48,7 +56,31 @@ local UI = Velora.new({
 
 `Parent = "Auto"` 在可用时选择 `gethui()`，否则使用 `LocalPlayer.PlayerGui`。也可以显式传入 `PlayerGui` 或其他能够容纳 `ScreenGui` 的父级。
 
-`IgnoreGuiInset` 默认是 `false`，窗口、通知和触屏恢复按钮会避开 Roblox 顶栏安全区域。仅在你自行处理安全区时才建议设为 `true`。
+`IgnoreGuiInset` 默认是 `false`，窗口、通知和顶部悬浮按钮会避开 Roblox 顶栏安全区域。仅在你自行处理安全区时才建议设为 `true`。
+
+## 顶部悬浮按钮
+
+主界面隐藏后会显示一个 WindUI 风格的顶部胶囊：44px 触摸高度、青紫渐变描边、图标与标题、独立拖动把手，并自动限制在屏幕内。点击胶囊会恢复目标窗口。
+
+```lua
+local OpenButton = Window:EditOpenButton({
+    Title = "Open Velora",
+    Icon = "V",
+    Position = UDim2.new(0.5, 0, 0, 34),
+    Draggable = true,
+    OnlyIcon = false,
+    OnlyMobile = false,
+    Scale = 1,
+    StrokeThickness = 1,
+})
+
+OpenButton:SetTitle("Velora UI")
+OpenButton:SetIcon("V")
+OpenButton:SetScale(0.95)
+OpenButton:Visible(nil) -- 恢复自动显隐
+```
+
+也可以在 `Velora.new({ OpenButton = {...} })` 或 `CreateWindow({ OpenButton = {...} })` 中配置。传入 `OpenButton = false` 可关闭入口；`OnlyIcon` 会切换紧凑图标模式；`Color` 支持 `Color3` 或 `ColorSequence`。
 
 ## 快速开始
 

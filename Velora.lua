@@ -8,7 +8,27 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.0.0"
+Velora.Version = "1.1.0"
+
+local Typography = {
+	Regular = Enum.Font.BuilderSans,
+	Medium = Enum.Font.BuilderSansMedium,
+	Bold = Enum.Font.BuilderSansBold,
+	Mono = Enum.Font.RobotoMono,
+}
+
+local FontAliases = {
+	[Enum.Font.Gotham] = Typography.Regular,
+	[Enum.Font.GothamMedium] = Typography.Medium,
+	[Enum.Font.GothamBold] = Typography.Bold,
+	[Enum.Font.Code] = Typography.Mono,
+}
+
+local function resolveFont(font)
+	return FontAliases[font] or font
+end
+
+Velora.Fonts = Typography
 
 local Maid = {}
 Maid.__index = Maid
@@ -243,7 +263,7 @@ local function create(className, properties, children)
 	if properties then
 		for property, value in pairs(properties) do
 			if property ~= "Parent" then
-				object[property] = value
+				object[property] = property == "Font" and resolveFont(value) or value
 			end
 		end
 	end
@@ -326,6 +346,7 @@ local function roundToStep(value, step, minimum)
 end
 
 local function textWidth(text, size, font)
+	font = resolveFont(font)
 	local ok, bounds = pcall(function()
 		return TextService:GetTextSize(tostring(text), size, font, Vector2.new(10000, 10000))
 	end)
@@ -420,6 +441,134 @@ local Themes = {
 		Warning = Color3.fromRGB(242, 178, 68),
 		Danger = Color3.fromRGB(246, 83, 102),
 		Overlay = Color3.fromRGB(9, 4, 8),
+	},
+	Ocean = {
+		Background = Color3.fromRGB(7, 18, 28),
+		Surface = Color3.fromRGB(11, 27, 41),
+		SurfaceAlt = Color3.fromRGB(16, 38, 56),
+		SurfaceHover = Color3.fromRGB(22, 52, 73),
+		Border = Color3.fromRGB(35, 73, 98),
+		Text = Color3.fromRGB(230, 246, 255),
+		Muted = Color3.fromRGB(129, 166, 188),
+		Accent = Color3.fromRGB(48, 189, 255),
+		AccentDark = Color3.fromRGB(20, 132, 190),
+		AccentText = Color3.fromRGB(4, 24, 36),
+		Success = Color3.fromRGB(54, 208, 151),
+		Warning = Color3.fromRGB(246, 185, 73),
+		Danger = Color3.fromRGB(242, 91, 113),
+		Overlay = Color3.fromRGB(2, 8, 14),
+	},
+	Violet = {
+		Background = Color3.fromRGB(17, 12, 28),
+		Surface = Color3.fromRGB(26, 18, 41),
+		SurfaceAlt = Color3.fromRGB(37, 26, 57),
+		SurfaceHover = Color3.fromRGB(51, 36, 76),
+		Border = Color3.fromRGB(71, 51, 99),
+		Text = Color3.fromRGB(246, 239, 255),
+		Muted = Color3.fromRGB(170, 148, 194),
+		Accent = Color3.fromRGB(168, 108, 255),
+		AccentDark = Color3.fromRGB(118, 72, 199),
+		AccentText = Color3.fromRGB(255, 255, 255),
+		Success = Color3.fromRGB(73, 209, 145),
+		Warning = Color3.fromRGB(246, 185, 73),
+		Danger = Color3.fromRGB(244, 86, 119),
+		Overlay = Color3.fromRGB(6, 3, 12),
+	},
+	Amber = {
+		Background = Color3.fromRGB(22, 17, 9),
+		Surface = Color3.fromRGB(32, 25, 14),
+		SurfaceAlt = Color3.fromRGB(45, 35, 19),
+		SurfaceHover = Color3.fromRGB(60, 47, 26),
+		Border = Color3.fromRGB(82, 64, 34),
+		Text = Color3.fromRGB(252, 245, 226),
+		Muted = Color3.fromRGB(185, 163, 118),
+		Accent = Color3.fromRGB(247, 173, 56),
+		AccentDark = Color3.fromRGB(194, 122, 23),
+		AccentText = Color3.fromRGB(39, 24, 4),
+		Success = Color3.fromRGB(88, 198, 126),
+		Warning = Color3.fromRGB(255, 193, 70),
+		Danger = Color3.fromRGB(235, 83, 91),
+		Overlay = Color3.fromRGB(9, 6, 2),
+	},
+	Nord = {
+		Background = Color3.fromRGB(22, 27, 37),
+		Surface = Color3.fromRGB(30, 37, 49),
+		SurfaceAlt = Color3.fromRGB(39, 48, 63),
+		SurfaceHover = Color3.fromRGB(49, 61, 78),
+		Border = Color3.fromRGB(67, 82, 103),
+		Text = Color3.fromRGB(236, 239, 244),
+		Muted = Color3.fromRGB(151, 163, 183),
+		Accent = Color3.fromRGB(136, 192, 208),
+		AccentDark = Color3.fromRGB(94, 142, 163),
+		AccentText = Color3.fromRGB(18, 29, 38),
+		Success = Color3.fromRGB(163, 190, 140),
+		Warning = Color3.fromRGB(235, 203, 139),
+		Danger = Color3.fromRGB(191, 97, 106),
+		Overlay = Color3.fromRGB(8, 11, 16),
+	},
+	Sakura = {
+		Background = Color3.fromRGB(250, 244, 247),
+		Surface = Color3.fromRGB(255, 251, 253),
+		SurfaceAlt = Color3.fromRGB(247, 233, 240),
+		SurfaceHover = Color3.fromRGB(240, 220, 230),
+		Border = Color3.fromRGB(222, 194, 207),
+		Text = Color3.fromRGB(54, 37, 48),
+		Muted = Color3.fromRGB(125, 91, 109),
+		Accent = Color3.fromRGB(225, 104, 153),
+		AccentDark = Color3.fromRGB(183, 71, 122),
+		AccentText = Color3.fromRGB(255, 255, 255),
+		Success = Color3.fromRGB(49, 156, 105),
+		Warning = Color3.fromRGB(196, 126, 33),
+		Danger = Color3.fromRGB(204, 64, 89),
+		Overlay = Color3.fromRGB(42, 24, 34),
+	},
+	Latte = {
+		Background = Color3.fromRGB(244, 239, 231),
+		Surface = Color3.fromRGB(253, 250, 245),
+		SurfaceAlt = Color3.fromRGB(235, 227, 216),
+		SurfaceHover = Color3.fromRGB(225, 214, 200),
+		Border = Color3.fromRGB(204, 189, 169),
+		Text = Color3.fromRGB(56, 47, 42),
+		Muted = Color3.fromRGB(117, 101, 91),
+		Accent = Color3.fromRGB(193, 108, 62),
+		AccentDark = Color3.fromRGB(151, 78, 44),
+		AccentText = Color3.fromRGB(255, 255, 255),
+		Success = Color3.fromRGB(68, 148, 104),
+		Warning = Color3.fromRGB(185, 116, 29),
+		Danger = Color3.fromRGB(190, 63, 72),
+		Overlay = Color3.fromRGB(43, 34, 28),
+	},
+	Crimson = {
+		Background = Color3.fromRGB(21, 10, 13),
+		Surface = Color3.fromRGB(32, 14, 19),
+		SurfaceAlt = Color3.fromRGB(45, 20, 27),
+		SurfaceHover = Color3.fromRGB(60, 27, 35),
+		Border = Color3.fromRGB(83, 38, 49),
+		Text = Color3.fromRGB(253, 239, 242),
+		Muted = Color3.fromRGB(184, 135, 146),
+		Accent = Color3.fromRGB(239, 68, 92),
+		AccentDark = Color3.fromRGB(184, 39, 62),
+		AccentText = Color3.fromRGB(255, 255, 255),
+		Success = Color3.fromRGB(67, 195, 129),
+		Warning = Color3.fromRGB(241, 175, 64),
+		Danger = Color3.fromRGB(255, 80, 101),
+		Overlay = Color3.fromRGB(8, 3, 5),
+	},
+	Cyber = {
+		Background = Color3.fromRGB(5, 9, 17),
+		Surface = Color3.fromRGB(8, 16, 28),
+		SurfaceAlt = Color3.fromRGB(12, 24, 40),
+		SurfaceHover = Color3.fromRGB(18, 35, 55),
+		Border = Color3.fromRGB(31, 59, 81),
+		Text = Color3.fromRGB(224, 250, 251),
+		Muted = Color3.fromRGB(104, 153, 164),
+		Accent = Color3.fromRGB(31, 231, 213),
+		AccentDark = Color3.fromRGB(12, 164, 154),
+		AccentText = Color3.fromRGB(1, 27, 27),
+		Success = Color3.fromRGB(57, 255, 147),
+		Warning = Color3.fromRGB(255, 210, 63),
+		Danger = Color3.fromRGB(255, 70, 122),
+		Overlay = Color3.fromRGB(1, 3, 7),
 	},
 	HighContrast = {
 		Background = Color3.fromRGB(0, 0, 0),
@@ -695,6 +844,11 @@ end
 local Window = {}
 Window.__index = Window
 
+local OpenButtonHandle = {}
+OpenButtonHandle.__index = OpenButtonHandle
+
+local createOpenButton
+
 local Tab = {}
 Tab.__index = Tab
 
@@ -906,6 +1060,7 @@ function Velora.new(options)
 		Mobile = true,
 		Debug = false,
 		DestroyExisting = false,
+		OpenButton = {},
 		Config = {
 			Folder = "Velora",
 			File = "default",
@@ -1006,43 +1161,18 @@ function Velora.new(options)
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = self.NotificationLayer,
 	})
-	self.RestoreButton = create("TextButton", {
-		Name = "Restore",
-		AnchorPoint = Vector2.new(0.5, 0),
-		Position = UDim2.new(0.5, 0, 0, 14),
-		Size = UDim2.fromOffset(128, 38),
-		BackgroundColor3 = self.Theme.Surface,
-		BorderSizePixel = 0,
-		AutoButtonColor = false,
-		Font = Enum.Font.GothamMedium,
-		Text = "Open " .. tostring(options.Name),
-		TextSize = 10,
-		TextColor3 = self.Theme.Text,
-		Visible = false,
-		ZIndex = 995,
-		Parent = self.ScreenGui,
-	})
-	addCorner(self.RestoreButton, 10)
-	local restoreStroke = addStroke(self.RestoreButton, self.Theme.Border, 0, 1)
-	self:_bindTheme(self.RestoreButton, {
-		BackgroundColor3 = "Surface",
-		TextColor3 = "Text",
-	})
-	self:_bindTheme(restoreStroke, { Color = "Border" })
+	local openButtonOptions = options.OpenButton
+	if openButtonOptions == false then
+		openButtonOptions = { Enabled = false }
+	elseif type(openButtonOptions) ~= "table" then
+		openButtonOptions = {}
+	end
+	self.OpenButton = createOpenButton(self, openButtonOptions)
+	self.RestoreButton = self.OpenButton and self.OpenButton.Root or nil
+	if self.OpenButton then
+		self._maid:Give(self.OpenButton)
+	end
 	self._visible = true
-	self._maid:Give(self.RestoreButton.Activated:Connect(function()
-		self:SetVisible(true)
-		local hasVisibleWindow = false
-		for _, window in ipairs(self._windows) do
-			if window.Root and window.Root.Visible then
-				hasVisibleWindow = true
-				break
-			end
-		end
-		if not hasVisibleWindow and self._windows[1] then
-			self._windows[1]:SetVisible(true)
-		end
-	end))
 
 	self._maid:Give(UserInputService.InputBegan:Connect(function(input, processed)
 		if processed or UserInputService:GetFocusedTextBox() then
@@ -1067,7 +1197,8 @@ function Velora.new(options)
 end
 
 function Velora:_updateRestoreButton()
-	if not self.RestoreButton then
+	local handle = self.OpenButton
+	if not handle or not handle:_isAlive() then
 		return
 	end
 	local hasVisibleWindow = false
@@ -1077,10 +1208,25 @@ function Velora:_updateRestoreButton()
 			break
 		end
 	end
-	local allWindowsHidden = #self._windows > 0 and not hasVisibleWindow
+	local hasWindows = #self._windows > 0
+	local allWindowsHidden = hasWindows and not hasVisibleWindow
 	local hidden = not self._visible or allWindowsHidden
-	local needsPointerRestore = UserInputService.TouchEnabled or not UserInputService.KeyboardEnabled or self.Options.ToggleKey == nil
-	self.RestoreButton.Visible = hidden and (needsPointerRestore or allWindowsHidden)
+	local automatic = hasWindows and hidden
+	if handle.Options.OnlyMobile == true
+		and not UserInputService.TouchEnabled
+		and UserInputService.KeyboardEnabled
+		and self.Options.ToggleKey ~= nil
+		and not allWindowsHidden
+	then
+		automatic = false
+	end
+	local visible = handle._visibilityOverride
+	if visible == nil then
+		visible = automatic
+	else
+		visible = hasWindows and visible
+	end
+	handle.Root.Visible = handle.Options.Enabled ~= false and visible
 end
 
 function Velora:SetVisible(visible)
@@ -1106,6 +1252,17 @@ end
 
 function Velora:Toggle()
 	return self:SetVisible(not self:IsVisible())
+end
+
+function Velora:EditOpenButton(options)
+	if self.OpenButton then
+		return self.OpenButton:Edit(options)
+	end
+	return nil
+end
+
+function Velora:GetOpenButton()
+	return self.OpenButton
 end
 
 function Velora:Destroy()
@@ -1271,6 +1428,401 @@ local function bindIconTheme(ui, icon, token)
 	end
 end
 
+function OpenButtonHandle:_isAlive()
+	return not self._destroyed and self.Root ~= nil and self.Root.Parent ~= nil and not self._ui._destroyed
+end
+
+function OpenButtonHandle:_resolveTitle()
+	if self.Options.Title ~= nil then
+		return tostring(self.Options.Title)
+	end
+	if self.Target and not self.Target._destroyed then
+		return tostring(self.Target.Options.Title)
+	end
+	return tostring(self._ui.Options.Name)
+end
+
+function OpenButtonHandle:_resolveIcon()
+	if self.Options.Icon ~= nil and self.Options.Icon ~= false then
+		return self.Options.Icon
+	end
+	if self.Target and not self.Target._destroyed and self.Target.Options.Icon ~= nil then
+		return self.Target.Options.Icon
+	end
+	return string.sub(self:_resolveTitle(), 1, 1)
+end
+
+function OpenButtonHandle:_clampPosition(center)
+	if not self:_isAlive() then
+		return
+	end
+	local viewport = self._ui.ScreenGui.AbsoluteSize
+	if viewport.X <= 0 or viewport.Y <= 0 then
+		local camera = workspace.CurrentCamera
+		viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+	end
+	local half = self.Root.AbsoluteSize / 2
+	local providedCenter = center ~= nil
+	local currentCenter = center or (self.Root.AbsolutePosition + half)
+	local clampedCenter = Vector2.new(
+		math.clamp(currentCenter.X, half.X + 8, math.max(half.X + 8, viewport.X - half.X - 8)),
+		math.clamp(currentCenter.Y, half.Y + 8, math.max(half.Y + 8, viewport.Y - half.Y - 8))
+	)
+	if providedCenter or (clampedCenter - currentCenter).Magnitude > 0.5 then
+		self.Root.Position = UDim2.fromOffset(clampedCenter.X, clampedCenter.Y)
+	end
+end
+
+function OpenButtonHandle:_render()
+	if not self:_isAlive() then
+		return self
+	end
+	local title = self:_resolveTitle()
+	local onlyIcon = self.Options.OnlyIcon == true
+	local draggable = self.Options.Draggable ~= false
+	local dragWidth = draggable and 40 or 0
+	local actionWidth = onlyIcon and 44 or math.clamp(textWidth(title, 13, Typography.Medium) + 58, 104, 240)
+	self.Root.Size = UDim2.fromOffset(dragWidth + actionWidth, 44)
+	self.Root.BackgroundTransparency = math.clamp(tonumber(self.Options.Transparency) or 0.08, 0, 1)
+	self.DragHandle.Visible = draggable
+	self.Divider.Visible = draggable
+	self.Action.Position = UDim2.fromOffset(dragWidth, 0)
+	self.Action.Size = UDim2.new(1, -dragWidth, 1, 0)
+	self.TitleLabel.Text = title
+	self.TitleLabel.Visible = not onlyIcon
+	self.IconHost.AnchorPoint = onlyIcon and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5)
+	self.IconHost.Position = onlyIcon and UDim2.fromScale(0.5, 0.5) or UDim2.new(0, 12, 0.5, 0)
+	if self.Icon then
+		self._ui._themeBindings[self.Icon] = nil
+		self.Icon:Destroy()
+	end
+	self.Icon = makeIconLabel(self.IconHost, self:_resolveIcon(), 22, 998)
+	self.Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+	self.Icon.Position = UDim2.fromScale(0.5, 0.5)
+	bindIconTheme(self._ui, self.Icon, "Text")
+
+	local scale = math.clamp(tonumber(self.Options.Scale) or 1, 0.6, 1.5)
+	self.Scale.Scale = scale
+	local radius = self.Options.CornerRadius
+	if typeof(radius) == "UDim" then
+		self.Corner.CornerRadius = radius
+	elseif tonumber(radius) then
+		self.Corner.CornerRadius = UDim.new(0, tonumber(radius))
+	else
+		self.Corner.CornerRadius = UDim.new(1, 0)
+	end
+	self.Stroke.Thickness = math.clamp(tonumber(self.Options.StrokeThickness) or 1, 0, 4)
+	local color = self.Options.Color
+	if typeof(color) == "Color3" then
+		self._ui._themeBindings[self.Stroke] = nil
+		self.Gradient.Enabled = false
+		self.Stroke.Color = color
+	elseif typeof(color) == "ColorSequence" then
+		self._ui._themeBindings[self.Stroke] = nil
+		self.Stroke.Color = Color3.new(1, 1, 1)
+		self.Gradient.Color = color
+		self.Gradient.Enabled = true
+	else
+		self.Gradient.Enabled = false
+		self._ui:_bindTheme(self.Stroke, { Color = "Border" })
+	end
+	if typeof(self.Options.Position) == "UDim2" then
+		self.Root.Position = self.Options.Position
+	end
+	task.defer(function()
+		if self:_isAlive() then
+			self:_clampPosition()
+		end
+	end)
+	self._ui:_updateRestoreButton()
+	return self
+end
+
+function OpenButtonHandle:Edit(options)
+	if self._destroyed then
+		return self
+	end
+	if options == false then
+		options = { Enabled = false }
+	end
+	if type(options) == "table" then
+		self.Options = deepMerge(self.Options, options)
+	end
+	return self:_render()
+end
+
+OpenButtonHandle.Update = OpenButtonHandle.Edit
+
+function OpenButtonHandle:SetEnabled(enabled)
+	return self:Edit({ Enabled = enabled == true })
+end
+
+function OpenButtonHandle:SetTitle(title)
+	self.Options.Title = title
+	return self:_render()
+end
+
+function OpenButtonHandle:SetIcon(icon)
+	self.Options.Icon = icon
+	return self:_render()
+end
+
+function OpenButtonHandle:SetPosition(position)
+	if typeof(position) == "UDim2" then
+		self.Options.Position = position
+	end
+	return self:_render()
+end
+
+function OpenButtonHandle:SetScale(scale)
+	return self:Edit({ Scale = scale })
+end
+
+function OpenButtonHandle:Visible(visible)
+	if self._destroyed or not self._ui then
+		return self
+	end
+	if visible == nil then
+		self._visibilityOverride = nil
+	else
+		self._visibilityOverride = visible == true
+	end
+	self._ui:_updateRestoreButton()
+	return self
+end
+
+OpenButtonHandle.SetVisible = OpenButtonHandle.Visible
+
+function OpenButtonHandle:IsVisible()
+	return self:_isAlive() and self.Root.Visible or false
+end
+
+function OpenButtonHandle:Open()
+	if not self:_isAlive() then
+		return self
+	end
+	local target = self.Target
+	if not target or target._destroyed or not target.Root then
+		target = nil
+		for _, window in ipairs(self._ui._windows) do
+			if not window._destroyed and window.Root then
+				target = window
+				break
+			end
+		end
+		self.Target = target
+	end
+	if target then
+		target:SetVisible(true)
+	end
+	self._ui:SetVisible(true)
+	return self
+end
+
+function OpenButtonHandle:Destroy()
+	if self._destroyed then
+		return
+	end
+	self._destroyed = true
+	local ui = self._ui
+	self._maid:Clean()
+	if ui and ui.OpenButton == self then
+		ui.OpenButton = nil
+		ui.RestoreButton = nil
+	end
+	self.Root = nil
+	self.Target = nil
+	self._ui = nil
+end
+
+createOpenButton = function(ui, options)
+	local handle = setmetatable({
+		_ui = ui,
+		Options = deepMerge({
+			Enabled = true,
+			Position = UDim2.new(0.5, 0, 0, 34),
+			OnlyIcon = false,
+			OnlyMobile = false,
+			Draggable = true,
+			Scale = 1,
+			Transparency = 0.08,
+			CornerRadius = UDim.new(1, 0),
+			StrokeThickness = 1,
+			Color = ColorSequence.new({
+				ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 201, 255)),
+				ColorSequenceKeypoint.new(1, Color3.fromRGB(232, 28, 255)),
+			}),
+		}, options),
+		_maid = Maid.new(),
+		_destroyed = false,
+		_visibilityOverride = nil,
+		Target = nil,
+	}, OpenButtonHandle)
+
+	local root = create("Frame", {
+		Name = "OpenButton",
+		AnchorPoint = Vector2.new(0.5, 0.5),
+		Position = typeof(options.Position) == "UDim2" and options.Position or UDim2.new(0.5, 0, 0, 34),
+		Size = UDim2.fromOffset(148, 44),
+		BackgroundColor3 = ui.Theme.Surface,
+		BackgroundTransparency = 0.08,
+		BorderSizePixel = 0,
+		ClipsDescendants = true,
+		Active = true,
+		Visible = false,
+		ZIndex = 995,
+		Parent = ui.ScreenGui,
+	})
+	handle.Root = root
+	handle._maid:Give(root)
+	ui:_bindTheme(root, { BackgroundColor3 = "Surface" })
+	handle.Corner = addCorner(root, 22)
+	handle.Stroke = addStroke(root, Color3.new(1, 1, 1), 0, 1)
+	handle.Gradient = create("UIGradient", {
+		Color = ColorSequence.new({
+			ColorSequenceKeypoint.new(0, Color3.fromRGB(64, 201, 255)),
+			ColorSequenceKeypoint.new(1, Color3.fromRGB(232, 28, 255)),
+		}),
+		Parent = handle.Stroke,
+	})
+	handle.Scale = create("UIScale", { Scale = 1, Parent = root })
+
+	handle.DragHandle = create("TextButton", {
+		Name = "Drag",
+		Size = UDim2.fromOffset(40, 44),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Font = Typography.Bold,
+		Text = "≡",
+		TextSize = 17,
+		TextColor3 = ui.Theme.Muted,
+		ZIndex = 997,
+		Parent = root,
+	})
+	ui:_bindTheme(handle.DragHandle, { TextColor3 = "Muted" })
+	handle.Divider = create("Frame", {
+		Position = UDim2.fromOffset(39, 10),
+		Size = UDim2.fromOffset(1, 24),
+		BackgroundColor3 = ui.Theme.Border,
+		BackgroundTransparency = 0.25,
+		BorderSizePixel = 0,
+		ZIndex = 997,
+		Parent = root,
+	})
+	ui:_bindTheme(handle.Divider, { BackgroundColor3 = "Border" })
+	handle.Action = create("TextButton", {
+		Name = "Action",
+		Position = UDim2.fromOffset(40, 0),
+		Size = UDim2.new(1, -40, 1, 0),
+		BackgroundColor3 = ui.Theme.SurfaceHover,
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 996,
+		Parent = root,
+	})
+	ui:_bindTheme(handle.Action, { BackgroundColor3 = "SurfaceHover" })
+	handle.IconHost = create("Frame", {
+		Name = "Icon",
+		AnchorPoint = Vector2.new(0, 0.5),
+		Position = UDim2.new(0, 12, 0.5, 0),
+		Size = UDim2.fromOffset(22, 22),
+		BackgroundTransparency = 1,
+		ZIndex = 997,
+		Parent = handle.Action,
+	})
+	handle.TitleLabel = create("TextLabel", {
+		Name = "Title",
+		Position = UDim2.fromOffset(44, 0),
+		Size = UDim2.new(1, -54, 1, 0),
+		BackgroundTransparency = 1,
+		Font = Typography.Medium,
+		Text = "",
+		TextSize = 13,
+		TextColor3 = ui.Theme.Text,
+		TextTruncate = Enum.TextTruncate.AtEnd,
+		TextXAlignment = Enum.TextXAlignment.Left,
+		ZIndex = 997,
+		Parent = handle.Action,
+	})
+	ui:_bindTheme(handle.TitleLabel, { TextColor3 = "Text" })
+
+	handle._maid:Give(handle.Action.MouseEnter:Connect(function()
+		ui:_tween(handle.Action, 0.12, { BackgroundTransparency = 0.86 })
+	end))
+	handle._maid:Give(handle.Action.MouseLeave:Connect(function()
+		ui:_tween(handle.Action, 0.12, { BackgroundTransparency = 1 })
+	end))
+	handle._maid:Give(handle.Action.Activated:Connect(function()
+		handle:Open()
+	end))
+
+	local dragging = false
+	local dragInput
+	local dragStart
+	local startCenter
+	local moved = false
+	handle._maid:Give(handle.DragHandle.InputBegan:Connect(function(input)
+		if dragging or handle.Options.Draggable == false then
+			return
+		end
+		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
+			return
+		end
+		dragging = true
+		dragInput = input
+		dragStart = Vector2.new(input.Position.X, input.Position.Y)
+		startCenter = root.AbsolutePosition + root.AbsoluteSize / 2
+		moved = false
+	end))
+	handle._maid:Give(UserInputService.InputChanged:Connect(function(input)
+		if not dragging or not dragInput then
+			return
+		end
+		local mouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
+		if input ~= dragInput and not (mouseDrag and input.UserInputType == Enum.UserInputType.MouseMovement) then
+			return
+		end
+		local current = Vector2.new(input.Position.X, input.Position.Y)
+		local delta = current - dragStart
+		if delta.Magnitude > 6 then
+			moved = true
+		end
+		if moved then
+			handle:_clampPosition(startCenter + delta)
+		end
+	end))
+	handle._maid:Give(UserInputService.InputEnded:Connect(function(input)
+		if not dragging or not dragInput then
+			return
+		end
+		local mouseDrag = dragInput.UserInputType == Enum.UserInputType.MouseButton1
+		if input ~= dragInput and not (mouseDrag and input.UserInputType == Enum.UserInputType.MouseButton1) then
+			return
+		end
+		if moved then
+			handle.Options.Position = root.Position
+		end
+		dragging = false
+		dragInput = nil
+	end))
+	handle._maid:Give(ui.ScreenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+		task.defer(function()
+			if handle:_isAlive() then
+				if typeof(handle.Options.Position) == "UDim2" then
+					root.Position = handle.Options.Position
+				end
+				handle:_clampPosition()
+			end
+		end)
+	end))
+
+	handle:_render()
+	return handle
+end
+
 function Velora:CreateWindow(options)
 	local providedOptions = options or {}
 	options = deepMerge({
@@ -1329,18 +1881,6 @@ function Velora:CreateWindow(options)
 	})
 	window.Root = root
 	window._maid:Give(root)
-
-	local shadow = create("Frame", {
-		Name = "Shadow",
-		Position = UDim2.fromOffset(0, 9),
-		Size = UDim2.fromScale(1, 1),
-		BackgroundColor3 = Color3.fromRGB(0, 0, 0),
-		BackgroundTransparency = 0.55,
-		BorderSizePixel = 0,
-		ZIndex = 0,
-		Parent = root,
-	})
-	addCorner(shadow, 15)
 
 	local panel = create("Frame", {
 		Name = "Panel",
@@ -1874,6 +2414,21 @@ function Velora:CreateWindow(options)
 	task.defer(updateResponsive)
 
 	table.insert(self._windows, window)
+	if self.OpenButton then
+		local openButtonOptions = providedOptions.OpenButton
+		if not self.OpenButton.Target or openButtonOptions ~= nil then
+			self.OpenButton.Target = window
+		end
+		if openButtonOptions == false then
+			self.OpenButton:Edit({ Enabled = false })
+		elseif type(openButtonOptions) == "table" then
+			self.OpenButton:Edit(openButtonOptions)
+		elseif openButtonOptions == true then
+			self.OpenButton:Edit({ Enabled = true })
+		else
+			self.OpenButton:_render()
+		end
+	end
 	self:_updateRestoreButton()
 	return window
 end
@@ -1886,6 +2441,9 @@ function Window:SetTitle(title, subtitle)
 	if subtitle ~= nil then
 		self.Options.Subtitle = tostring(subtitle)
 		self.BrandSubtitle.Text = self.Options.Subtitle
+	end
+	if self._ui.OpenButton and self._ui.OpenButton.Target == self then
+		self._ui.OpenButton:_render()
 	end
 	return self
 end
@@ -2024,6 +2582,24 @@ function Window:SetToggleKey(key)
 	return true
 end
 
+function Window:EditOpenButton(options)
+	local handle = self._ui.OpenButton
+	if not handle then
+		return nil
+	end
+	handle.Target = self
+	return handle:Edit(options)
+end
+
+function Window:GetOpenButton()
+	local handle = self._ui:GetOpenButton()
+	if handle and not self._destroyed then
+		handle.Target = self
+		handle:_render()
+	end
+	return handle
+end
+
 function Window:LockAll(reason)
 	for _, tab in ipairs(self._tabs) do
 		tab:LockAll(reason)
@@ -2054,6 +2630,10 @@ function Window:Destroy()
 	end
 	table.clear(self._tabs)
 	self.Root = nil
+	if self._ui.OpenButton and self._ui.OpenButton.Target == self then
+		self._ui.OpenButton.Target = self._ui._windows[1]
+		self._ui.OpenButton:_render()
+	end
 	self._ui:_updateRestoreButton()
 end
 
@@ -5200,7 +5780,7 @@ end
 local function measureNotification(content, width, actionCount, availableHeight)
 	local actionHeight = actionCount > 0 and 40 or 0
 	local contentWidth = math.max(70, width - 70)
-	local measuredHeight = math.max(18, TextService:GetTextSize(content, 10, Enum.Font.Gotham, Vector2.new(contentWidth, 1000)).Y)
+	local measuredHeight = math.max(18, TextService:GetTextSize(content, 10, Typography.Regular, Vector2.new(contentWidth, 1000)).Y)
 	local minimumHeight = actionHeight > 0 and 113 or 76
 	local maximumHeight = math.max(minimumHeight, math.min(190, availableHeight))
 	local cardHeight = math.clamp(55 + measuredHeight + actionHeight, minimumHeight, maximumHeight)
@@ -5570,7 +6150,7 @@ function Velora:Dialog(options)
 	end
 	local dialogWidth = math.min(tonumber(options.Width) or 410, math.max(120, viewportWidth - 24))
 	local measurementWidth = math.max(80, dialogWidth - 40)
-	local contentHeight = math.max(22, TextService:GetTextSize(options.Content, 11, Enum.Font.Gotham, Vector2.new(measurementWidth, 1000)).Y)
+	local contentHeight = math.max(22, TextService:GetTextSize(options.Content, 11, Typography.Regular, Vector2.new(measurementWidth, 1000)).Y)
 	local cardHeight = math.clamp(120 + math.min(contentHeight, 240), 176, 360)
 	local card = create("CanvasGroup", {
 		Name = "Dialog",

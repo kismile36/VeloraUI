@@ -5,6 +5,12 @@ local UI = Velora.new({
 	DestroyExisting = true,
 	Theme = "Midnight",
 	ToggleKey = Enum.KeyCode.RightShift,
+	OpenButton = {
+		Title = "Velora UI",
+		Icon = "V",
+		OnlyMobile = false,
+		Draggable = true,
+	},
 	Config = {
 		Folder = "VeloraDemo",
 		File = "showcase",
@@ -218,7 +224,21 @@ local ThemeSection = Themes:AddSection({
 	Side = "Left",
 })
 
-for _, themeName in ipairs({ "Midnight", "Light", "Emerald", "Rose", "HighContrast" }) do
+for _, themeName in ipairs({
+	"Midnight",
+	"Ocean",
+	"Violet",
+	"Emerald",
+	"Amber",
+	"Rose",
+	"Crimson",
+	"Nord",
+	"Cyber",
+	"Light",
+	"Sakura",
+	"Latte",
+	"HighContrast",
+}) do
 	ThemeSection:AddButton({
 		Title = themeName,
 		ActionText = "Apply",
@@ -232,6 +252,24 @@ local DisplaySection = Themes:AddSection({
 	Title = "Display components",
 	Description = "Useful for dashboards and documentation",
 	Side = "Right",
+})
+
+DisplaySection:AddButton({
+	Title = "Preview top open button",
+	Description = "Hide the main window and restore it from the draggable floating pill",
+	ActionText = "Preview",
+	Callback = function()
+		Window:Close()
+	end,
+})
+
+DisplaySection:AddToggle({
+	Title = "Icon-only open button",
+	Description = "Switch the floating pill between compact and labeled layouts",
+	Default = false,
+	Callback = function(value)
+		Window:EditOpenButton({ OnlyIcon = value })
+	end,
 })
 
 DisplaySection:AddLabel({
