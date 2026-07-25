@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.2.1"
+Velora.Version = "1.2.2"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -1115,8 +1115,9 @@ function Velora.new(options)
 
 	local parent = resolveParent(options)
 	local modalName = options.Name .. "_Modal"
+	local floatingName = options.Name .. "_Floating"
 	if options.DestroyExisting then
-		for _, guiName in ipairs({ options.Name, modalName }) do
+		for _, guiName in ipairs({ options.Name, modalName, floatingName }) do
 			for _, existing in ipairs(parent:GetChildren()) do
 				if existing.Name == guiName and existing:IsA("ScreenGui") then
 					existing:Destroy()
@@ -1139,12 +1140,27 @@ function Velora.new(options)
 			self:Destroy()
 		end
 	end))
+	self.FloatingGui = create("ScreenGui", {
+		Name = floatingName,
+		IgnoreGuiInset = true,
+		ScreenInsets = Enum.ScreenInsets.None,
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = (tonumber(options.DisplayOrder) or 1000) + 1,
+		Parent = parent,
+	})
+	self._maid:Give(self.FloatingGui)
+	self._maid:Give(self.FloatingGui.Destroying:Connect(function()
+		if not self._destroyed then
+			self:Destroy()
+		end
+	end))
 	self.ModalGui = create("ScreenGui", {
 		Name = modalName,
 		IgnoreGuiInset = true,
 		ResetOnSpawn = false,
 		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
-		DisplayOrder = (tonumber(options.DisplayOrder) or 1000) + 1,
+		DisplayOrder = (tonumber(options.DisplayOrder) or 1000) + 2,
 		Parent = parent,
 	})
 	self._maid:Give(self.ModalGui)
@@ -1159,6 +1175,13 @@ function Velora.new(options)
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		Parent = self.ScreenGui,
+	})
+	self.OpenButtonLayer = create("Frame", {
+		Name = "FloatingControls",
+		BackgroundTransparency = 1,
+		Size = UDim2.fromScale(1, 1),
+		ZIndex = 990,
+		Parent = self.FloatingGui,
 	})
 	self.PopupLayer = create("Frame", {
 		Name = "Popups",
@@ -1352,9 +1375,11 @@ function Velora:Destroy()
 	self.ThemeChanged:Destroy()
 	self._maid:Clean()
 	self.ScreenGui = nil
+	self.FloatingGui = nil
 	self.ModalGui = nil
 	self.ModalLayer = nil
 	self.WindowLayer = nil
+	self.OpenButtonLayer = nil
 	self.PopupLayer = nil
 	self.NotificationLayer = nil
 	table.clear(self._windows)
@@ -1517,28 +1542,21 @@ function OpenButtonHandle:_resolveIcon()
 	return string.sub(self:_resolveTitle(), 1, 1)
 end
 
-function OpenButtonHandle:_clampPosition(center)
-	if not self:_isAlive() then
-		return
+local function defaultOpenButtonPosition()
+	local topInset = 0
+	local ok, inset = pcall(function()
+		return GuiService:GetGuiInset()
+	end)
+	if ok and typeof(inset) == "Vector2" then
+		topInset = math.max(0, inset.Y)
 	end
-	local layer = self._ui.WindowLayer
-	if not layer or not layer.Parent then
-		return
+	local topbarOk, topbarInset = pcall(function()
+		return GuiService.TopbarInset
+	end)
+	if topbarOk and typeof(topbarInset) == "Rect" then
+		topInset = math.max(topInset, topbarInset.Max.Y)
 	end
-	local viewport = layer.AbsoluteSize
-	if viewport.X <= 0 or viewport.Y <= 0 then
-		return
-	end
-	local half = self.Root.AbsoluteSize / 2
-	local providedCenter = center ~= nil
-	local currentCenter = center or (self.Root.AbsolutePosition - layer.AbsolutePosition + half)
-	local clampedCenter = Vector2.new(
-		math.clamp(currentCenter.X, half.X + 8, math.max(half.X + 8, viewport.X - half.X - 8)),
-		math.clamp(currentCenter.Y, half.Y + 8, math.max(half.Y + 8, viewport.Y - half.Y - 8))
-	)
-	if providedCenter or (clampedCenter - currentCenter).Magnitude > 0.5 then
-		self.Root.Position = UDim2.fromOffset(clampedCenter.X, clampedCenter.Y)
-	end
+	return UDim2.new(0.5, 0, 0, topInset + 34)
 end
 
 function OpenButtonHandle:_render()
@@ -1597,11 +1615,6 @@ function OpenButtonHandle:_render()
 	if typeof(self.Options.Position) == "UDim2" then
 		self.Root.Position = self.Options.Position
 	end
-	task.defer(function()
-		if self:_isAlive() then
-			self:_clampPosition()
-		end
-	end)
 	self._ui:_updateRestoreButton()
 	return self
 end
@@ -1646,6 +1659,11 @@ function OpenButtonHandle:SetPosition(position)
 	if typeof(position) == "UDim2" then
 		self.Options.Position = position
 	end
+	return self:_render()
+end
+
+function OpenButtonHandle:ResetPosition()
+	self.Options.Position = defaultOpenButtonPosition()
 	return self:_render()
 end
 
@@ -1730,11 +1748,12 @@ function OpenButtonHandle:Destroy()
 end
 
 createOpenButton = function(ui, options)
+	local initialPosition = typeof(options.Position) == "UDim2" and options.Position or defaultOpenButtonPosition()
 	local handle = setmetatable({
 		_ui = ui,
 		Options = deepMerge({
 			Enabled = true,
-			Position = UDim2.new(0.5, 0, 0, 34),
+			Position = initialPosition,
 			OnlyIcon = false,
 			OnlyMobile = false,
 			Draggable = true,
@@ -1756,7 +1775,7 @@ createOpenButton = function(ui, options)
 	local root = create("Frame", {
 		Name = "OpenButton",
 		AnchorPoint = Vector2.new(0.5, 0.5),
-		Position = typeof(options.Position) == "UDim2" and options.Position or UDim2.new(0.5, 0, 0, 34),
+		Position = initialPosition,
 		Size = UDim2.fromOffset(148, 44),
 		BackgroundColor3 = ui.Theme.Surface,
 		BackgroundTransparency = 0.08,
@@ -1765,7 +1784,7 @@ createOpenButton = function(ui, options)
 		Active = true,
 		Visible = false,
 		ZIndex = 995,
-		Parent = ui.ScreenGui,
+		Parent = ui.OpenButtonLayer,
 	})
 	handle.Root = root
 	handle._maid:Give(root)
@@ -1856,7 +1875,7 @@ createOpenButton = function(ui, options)
 	local dragging = false
 	local dragInput
 	local dragStart
-	local startCenter
+	local startPosition
 	local moved = false
 	handle._maid:Give(handle.DragHandle.InputBegan:Connect(function(input)
 		if dragging or handle.Options.Draggable == false then
@@ -1865,14 +1884,10 @@ createOpenButton = function(ui, options)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
-		local layer = ui.WindowLayer
-		if not layer or layer.AbsoluteSize.X <= 0 or layer.AbsoluteSize.Y <= 0 then
-			return
-		end
 		dragging = true
 		dragInput = input
 		dragStart = Vector2.new(input.Position.X, input.Position.Y)
-		startCenter = root.AbsolutePosition - layer.AbsolutePosition + root.AbsoluteSize / 2
+		startPosition = root.Position
 		moved = false
 	end))
 	handle._maid:Give(UserInputService.InputChanged:Connect(function(input)
@@ -1889,7 +1904,12 @@ createOpenButton = function(ui, options)
 			moved = true
 		end
 		if moved then
-			handle:_clampPosition(startCenter + delta)
+			root.Position = UDim2.new(
+				startPosition.X.Scale,
+				startPosition.X.Offset + delta.X,
+				startPosition.Y.Scale,
+				startPosition.Y.Offset + delta.Y
+			)
 		end
 	end))
 	handle._maid:Give(UserInputService.InputEnded:Connect(function(input)
@@ -1906,17 +1926,6 @@ createOpenButton = function(ui, options)
 		dragging = false
 		dragInput = nil
 	end))
-	handle._maid:Give(ui.WindowLayer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
-		task.defer(function()
-			if handle:_isAlive() then
-				if typeof(handle.Options.Position) == "UDim2" then
-					root.Position = handle.Options.Position
-				end
-				handle:_clampPosition()
-			end
-		end)
-	end))
-
 	handle:_render()
 	return handle
 end

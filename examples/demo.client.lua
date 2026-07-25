@@ -11,7 +11,6 @@ local UI = Velora.new({
 		OnlyMobile = false,
 		OnlyIcon = false,
 		Draggable = true,
-		Position = UDim2.new(0.5, 0, 0, 34),
 	},
 	Config = {
 		Folder = "VeloraDemo",
@@ -854,7 +853,7 @@ local OnlyIconToggle = OpenButtonSection:AddToggle({
 
 local DraggableToggle = OpenButtonSection:AddToggle({
 	Title = "允许拖动悬浮窗",
-	Description = "拖动手柄会自动限制在屏幕范围内",
+	Description = "与 Wind UI 一样，可拖到屏幕最顶部",
 	Flag = "appearance.open_draggable",
 	Default = true,
 	NoSave = true,
@@ -897,10 +896,9 @@ OpenButtonSection:AddButton({
 		DraggableToggle:Set(true)
 		OpenScale:Set(1)
 		OpenColor:Reset({ Silent = true })
-		Window:EditOpenButton({
+		local openButton = Window:EditOpenButton({
 			Title = "打开 Velora",
 			Icon = "界",
-			Position = UDim2.new(0.5, 0, 0, 34),
 			OnlyIcon = false,
 			Draggable = true,
 			Scale = 1,
@@ -909,6 +907,9 @@ OpenButtonSection:AddButton({
 				ColorSequenceKeypoint.new(1, Color3.fromRGB(232, 28, 255)),
 			}),
 		})
+		if openButton then
+			openButton:ResetPosition()
+		end
 	end,
 })
 

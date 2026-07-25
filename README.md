@@ -56,17 +56,16 @@ local UI = Velora.new({
 
 `Parent = "Auto"` 在可用时选择 `gethui()`，否则使用 `LocalPlayer.PlayerGui`。也可以显式传入 `PlayerGui` 或其他能够容纳 `ScreenGui` 的父级。
 
-`IgnoreGuiInset` 默认是 `false`，窗口、通知和顶部悬浮按钮会避开 Roblox 顶栏安全区域。仅在你自行处理安全区时才建议设为 `true`。
+`IgnoreGuiInset` 默认是 `false`，用于控制主窗口和通知是否避开 Roblox 顶栏。顶部悬浮按钮始终使用 WindUI 同款全屏坐标层，初始显示在顶栏下方，并可自由拖到物理屏幕顶部。
 
 ## 顶部悬浮按钮
 
-主界面隐藏后会显示一个 WindUI 风格的顶部胶囊：44px 触摸高度、青紫渐变描边、图标与标题、独立拖动把手，并自动限制在屏幕内。点击胶囊会恢复目标窗口。
+主界面隐藏后会显示一个 WindUI 风格的顶部胶囊：44px 触摸高度、青紫渐变描边、图标与标题、独立拖动把手。拖动采用与 WindUI 相同的全屏坐标增量，不限制顶部位置；点击胶囊会恢复目标窗口。
 
 ```lua
 local OpenButton = Window:EditOpenButton({
     Title = "Open Velora",
     Icon = "V",
-    Position = UDim2.new(0.5, 0, 0, 34),
     Draggable = true,
     OnlyIcon = false,
     OnlyMobile = false,
@@ -77,6 +76,7 @@ local OpenButton = Window:EditOpenButton({
 OpenButton:SetTitle("Velora UI")
 OpenButton:SetIcon("V")
 OpenButton:SetScale(0.95)
+OpenButton:ResetPosition()
 OpenButton:Visible(nil) -- 恢复自动显隐
 ```
 
