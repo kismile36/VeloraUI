@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.2.2"
+Velora.Version = "1.2.3"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -927,6 +927,14 @@ function Velora:_bindTheme(object, mapping)
 		return object
 	end
 	self._themeBindings[object] = mapping
+	if not self._themeBindingConnections[object] then
+		local connection
+		connection = object.Destroying:Connect(function()
+			self._themeBindings[object] = nil
+			self._themeBindingConnections[object] = nil
+		end)
+		self._themeBindingConnections[object] = connection
+	end
 	for property, token in pairs(mapping) do
 		local value = type(token) == "string" and self.Theme[token] or token
 		if value ~= nil then
@@ -1030,6 +1038,11 @@ function Velora:SetTheme(theme, setOptions)
 			end
 		else
 			self._themeBindings[object] = nil
+			local connection = self._themeBindingConnections[object]
+			if connection then
+				connection:Disconnect()
+				self._themeBindingConnections[object] = nil
+			end
 		end
 	end
 	self.ThemeChanged:Fire(themeName, deepCopy(self.Theme))
@@ -1097,7 +1110,8 @@ function Velora.new(options)
 	if options.Accent then
 		self.Theme.Accent = options.Accent
 	end
-	self._themeBindings = setmetatable({}, { __mode = "k" })
+	self._themeBindings = {}
+	self._themeBindingConnections = {}
 	self._activeTweens = setmetatable({}, { __mode = "k" })
 	self._windows = {}
 	self._notifications = {}
@@ -5756,6 +5770,10 @@ function Section:AddCode(first, second)
 	end
 	options.Title = options.Title or options.Name or "Code"
 	local codeValue = tostring(options.Code or options.Value or "")
+	local copyText = tostring(options.CopyText or "Copy")
+	local copiedText = tostring(options.CopiedText or "Copied")
+	local failedText = tostring(options.FailedText or "Failed")
+	local unavailableText = tostring(options.UnavailableText or "Unavailable")
 	local control = self:_makeStaticControl("Code", codeValue, options)
 	control._sanitize = function(value)
 		return tostring(value or "")
@@ -5770,23 +5788,32 @@ function Section:AddCode(first, second)
 		Parent = self.Holder,
 	})
 	addCorner(root, 9)
-	local rootStroke = addStroke(root, self._ui.Theme.Border, 0.45, 1)
+	local rootStroke = addStroke(root, self._ui.Theme.Border, 0.35, 1)
 	self._ui:_bindTheme(root, { BackgroundColor3 = "SurfaceAlt" })
 	self._ui:_bindTheme(rootStroke, { Color = "Border" })
 	local header = create("Frame", {
-		Size = UDim2.new(1, 0, 0, 38),
-		BackgroundColor3 = self._ui.Theme.Surface,
+		Size = UDim2.new(1, 0, 0, 40),
+		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		Parent = root,
 	})
-	self._ui:_bindTheme(header, { BackgroundColor3 = "Surface" })
+	local headerDivider = create("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 10, 1, 0),
+		Size = UDim2.new(1, -20, 0, 1),
+		BackgroundColor3 = self._ui.Theme.Border,
+		BackgroundTransparency = 0.35,
+		BorderSizePixel = 0,
+		Parent = header,
+	})
+	self._ui:_bindTheme(headerDivider, { BackgroundColor3 = "Border" })
 	local title = create("TextLabel", {
 		BackgroundTransparency = 1,
 		Position = UDim2.fromOffset(12, 0),
-		Size = UDim2.new(1, -88, 1, 0),
+		Size = UDim2.new(1, -96, 1, 0),
 		Font = Enum.Font.GothamMedium,
 		Text = tostring(options.Title),
-		TextSize = 11,
+		TextSize = 12,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = header,
@@ -5795,24 +5822,26 @@ function Section:AddCode(first, second)
 	local copyButton = create("TextButton", {
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -8, 0.5, 0),
-		Size = UDim2.fromOffset(62, 26),
+		Size = UDim2.fromOffset(64, 26),
 		BackgroundColor3 = self._ui.Theme.SurfaceHover,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
 		Font = Enum.Font.GothamMedium,
-		Text = "Copy",
-		TextSize = 9,
-		TextColor3 = self._ui.Theme.Muted,
+		Text = copyText,
+		TextSize = 10,
+		TextColor3 = self._ui.Theme.Text,
 		Parent = header,
 	})
 	addCorner(copyButton, 6)
+	local copyStroke = addStroke(copyButton, self._ui.Theme.Border, 0.55, 1)
 	self._ui:_bindTheme(copyButton, {
 		BackgroundColor3 = "SurfaceHover",
-		TextColor3 = "Muted",
+		TextColor3 = "Text",
 	})
+	self._ui:_bindTheme(copyStroke, { Color = "Border" })
 	local scroll = create("ScrollingFrame", {
-		Position = UDim2.fromOffset(0, 38),
-		Size = UDim2.new(1, 0, 1, -38),
+		Position = UDim2.fromOffset(0, 40),
+		Size = UDim2.new(1, 0, 1, -40),
 		BackgroundTransparency = 1,
 		BorderSizePixel = 0,
 		CanvasSize = UDim2.new(),
@@ -5829,7 +5858,7 @@ function Section:AddCode(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Code,
 		Text = codeValue,
-		TextSize = options.TextSize or 11,
+		TextSize = options.TextSize or 12,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -5844,13 +5873,13 @@ function Section:AddCode(first, second)
 		local setClipboard = getEnvironmentFunction("setclipboard") or getEnvironmentFunction("toclipboard")
 		if setClipboard then
 			local ok = pcall(setClipboard, control._value)
-			copyButton.Text = ok and "Copied" or "Failed"
+			copyButton.Text = ok and copiedText or failedText
 		else
-			copyButton.Text = "Unavailable"
+			copyButton.Text = unavailableText
 		end
 		task.delay(1.1, function()
 			if copyButton.Parent then
-				copyButton.Text = "Copy"
+				copyButton.Text = copyText
 			end
 		end)
 	end))

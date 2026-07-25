@@ -597,6 +597,10 @@ local DemoCode = MediaSection:AddCode({
 	Title = "状态 API 示例",
 	Code = "local current = UI:GetFlag(\"demo.volume\")\nUI:SetFlag(\"demo.volume\", 80, { Source = \"api\" })\nprint(\"当前音量\", current)",
 	Height = 150,
+	CopyText = "复制",
+	CopiedText = "已复制",
+	FailedText = "失败",
+	UnavailableText = "不可用",
 })
 
 MediaSection:AddImage({
@@ -1016,6 +1020,10 @@ local ExportPreview = TransferSection:AddCode({
 	Title = "导出内容预览",
 	Code = "-- 点击下方按钮生成当前配置",
 	Height = 180,
+	CopyText = "复制",
+	CopiedText = "已复制",
+	FailedText = "失败",
+	UnavailableText = "不可用",
 })
 
 local exportedConfig
