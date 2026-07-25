@@ -4,7 +4,7 @@ local UI = Velora.new({
 	Name = "VeloraChineseDemo",
 	DestroyExisting = true,
 	Theme = "Midnight",
-	ToggleKey = Enum.KeyCode.RightShift,
+	ToggleKey = Enum.KeyCode.G,
 	OpenButton = {
 		Title = "打开 Velora",
 		Icon = "界",
@@ -156,7 +156,7 @@ local TipsSection = OverviewTab:AddSection({
 })
 
 TipsSection:AddLabel({
-	Text = "右 Shift：显示或隐藏整个界面",
+	Text = "G 键：显示或隐藏整个界面",
 	Bold = true,
 	ColorToken = "Text",
 })
@@ -518,8 +518,9 @@ local QuickKey = AdvancedSection:AddKeybind({
 	Title = "快捷操作按键",
 	Description = "点击右侧按键框后按下新按键",
 	Flag = "profile.keybind",
-	Default = Enum.KeyCode.G,
+	Default = Enum.KeyCode.H,
 	Mode = "Press",
+	BlackList = { Enum.KeyCode.G },
 	OnActivated = function()
 		notify("快捷键已触发", "按键绑定回调运行成功。", "Info")
 	end,

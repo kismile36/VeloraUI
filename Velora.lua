@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.2.0"
+Velora.Version = "1.2.1"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -1070,7 +1070,7 @@ function Velora.new(options)
 		DisplayOrder = 1000,
 		IgnoreGuiInset = false,
 		ReducedMotion = false,
-		ToggleKey = Enum.KeyCode.RightShift,
+		ToggleKey = Enum.KeyCode.G,
 		Mobile = true,
 		Debug = false,
 		DestroyExisting = false,
@@ -1108,6 +1108,7 @@ function Velora.new(options)
 	self._autosaveRevision = 0
 	self._popupMaid = nil
 	self._dialogMaid = nil
+	self._capturingKeybind = nil
 	self.ThemeChanged = Signal.new()
 	self.State = State.new(self)
 	self.Flags = self.State._values
@@ -1207,7 +1208,7 @@ function Velora.new(options)
 	self._visible = true
 
 	self._maid:Give(UserInputService.InputBegan:Connect(function(input, processed)
-		if processed or UserInputService:GetFocusedTextBox() then
+		if processed or UserInputService:GetFocusedTextBox() or self._capturingKeybind then
 			return
 		end
 		if options.ToggleKey and input.KeyCode == options.ToggleKey then
@@ -1274,10 +1275,20 @@ function Velora:_updateRestoreButton()
 	handle.Root.Visible = handle.Options.Enabled ~= false and visible
 end
 
+function Velora:_cancelKeybindCapture()
+	local control = self._capturingKeybind
+	if control and not control._destroyed and control._cancelCapture then
+		control:_cancelCapture()
+	else
+		self._capturingKeybind = nil
+	end
+end
+
 function Velora:SetVisible(visible)
 	visible = visible == true
 	self._visible = visible
 	if not visible then
+		self:_cancelKeybindCapture()
 		self:_closePopup()
 		self:CloseCommandPalette()
 	end
@@ -1398,12 +1409,11 @@ function Velora:_openPopup(anchor, options)
 		if not anchor or not anchor.Parent or not popup.Parent then
 			return
 		end
-		local viewport = self.WindowLayer.AbsoluteSize
-		if viewport.X <= 0 then
-			local camera = workspace.CurrentCamera
-			viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+		local viewport = self.PopupLayer.AbsoluteSize
+		if viewport.X <= 0 or viewport.Y <= 0 then
+			return
 		end
-		local anchorPosition = anchor.AbsolutePosition
+		local anchorPosition = anchor.AbsolutePosition - self.PopupLayer.AbsolutePosition
 		local anchorSize = anchor.AbsoluteSize
 		local popupSize = popup.AbsoluteSize
 		local maximumWidth = math.max(80, viewport.X - 20)
@@ -1432,6 +1442,8 @@ function Velora:_openPopup(anchor, options)
 	end))
 	maid:Give(anchor:GetPropertyChangedSignal("AbsolutePosition"):Connect(place))
 	maid:Give(anchor:GetPropertyChangedSignal("AbsoluteSize"):Connect(place))
+	maid:Give(self.PopupLayer:GetPropertyChangedSignal("AbsolutePosition"):Connect(place))
+	maid:Give(self.PopupLayer:GetPropertyChangedSignal("AbsoluteSize"):Connect(place))
 	task.defer(place)
 
 	return popup, maid, place
@@ -1509,14 +1521,17 @@ function OpenButtonHandle:_clampPosition(center)
 	if not self:_isAlive() then
 		return
 	end
-	local viewport = self._ui.ScreenGui.AbsoluteSize
+	local layer = self._ui.WindowLayer
+	if not layer or not layer.Parent then
+		return
+	end
+	local viewport = layer.AbsoluteSize
 	if viewport.X <= 0 or viewport.Y <= 0 then
-		local camera = workspace.CurrentCamera
-		viewport = camera and camera.ViewportSize or Vector2.new(1280, 720)
+		return
 	end
 	local half = self.Root.AbsoluteSize / 2
 	local providedCenter = center ~= nil
-	local currentCenter = center or (self.Root.AbsolutePosition + half)
+	local currentCenter = center or (self.Root.AbsolutePosition - layer.AbsolutePosition + half)
 	local clampedCenter = Vector2.new(
 		math.clamp(currentCenter.X, half.X + 8, math.max(half.X + 8, viewport.X - half.X - 8)),
 		math.clamp(currentCenter.Y, half.Y + 8, math.max(half.Y + 8, viewport.Y - half.Y - 8))
@@ -1850,10 +1865,14 @@ createOpenButton = function(ui, options)
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
+		local layer = ui.WindowLayer
+		if not layer or layer.AbsoluteSize.X <= 0 or layer.AbsoluteSize.Y <= 0 then
+			return
+		end
 		dragging = true
 		dragInput = input
 		dragStart = Vector2.new(input.Position.X, input.Position.Y)
-		startCenter = root.AbsolutePosition + root.AbsoluteSize / 2
+		startCenter = root.AbsolutePosition - layer.AbsolutePosition + root.AbsoluteSize / 2
 		moved = false
 	end))
 	handle._maid:Give(UserInputService.InputChanged:Connect(function(input)
@@ -1887,7 +1906,7 @@ createOpenButton = function(ui, options)
 		dragging = false
 		dragInput = nil
 	end))
-	handle._maid:Give(ui.ScreenGui:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
+	handle._maid:Give(ui.WindowLayer:GetPropertyChangedSignal("AbsoluteSize"):Connect(function()
 		task.defer(function()
 			if handle:_isAlive() then
 				if typeof(handle.Options.Position) == "UDim2" then
@@ -1973,9 +1992,7 @@ function Velora:CreateWindow(options)
 		Parent = root,
 	})
 	addCorner(panel, 14)
-	local panelStroke = addStroke(panel, self.Theme.Border, 0.05, 1)
 	self:_bindTheme(panel, { BackgroundColor3 = "Background" })
-	self:_bindTheme(panelStroke, { Color = "Border" })
 	window.Panel = panel
 
 	local topbar = create("Frame", {
@@ -2342,7 +2359,7 @@ function Velora:CreateWindow(options)
 		dragging = true
 		dragInput = input
 		dragStart = Vector2.new(input.Position.X, input.Position.Y)
-		startCenter = Vector2.new(root.AbsolutePosition.X + root.AbsoluteSize.X / 2, root.AbsolutePosition.Y + root.AbsoluteSize.Y / 2)
+		startCenter = root.AbsolutePosition - self.WindowLayer.AbsolutePosition + root.AbsoluteSize / 2
 		moved = false
 	end))
 	window._maid:Give(UserInputService.InputChanged:Connect(function(input)
@@ -2355,7 +2372,7 @@ function Velora:CreateWindow(options)
 			moved = true
 		end
 		if moved then
-			local viewport = self.ScreenGui.AbsoluteSize
+			local viewport = self.WindowLayer.AbsoluteSize
 			local half = root.AbsoluteSize / 2
 			local center = startCenter + delta
 			center = Vector2.new(
@@ -2393,7 +2410,7 @@ function Velora:CreateWindow(options)
 			return
 		end
 		local delta = Vector2.new(input.Position.X, input.Position.Y) - resizeStart
-		local viewport = self.ScreenGui.AbsoluteSize
+		local viewport = self.WindowLayer.AbsoluteSize
 		local maximum = Vector2.new(
 			math.min(options.MaxSize.X, viewport.X - 20),
 			math.min(options.MaxSize.Y, viewport.Y - 20)
@@ -2420,8 +2437,10 @@ function Velora:CreateWindow(options)
 		if window._destroyed then
 			return
 		end
-		local camera = workspace.CurrentCamera
-		local viewport = camera and camera.ViewportSize or self.WindowLayer.AbsoluteSize
+		local viewport = self.WindowLayer.AbsoluteSize
+		if viewport.X <= 0 or viewport.Y <= 0 then
+			return
+		end
 		local mobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
 		window._mobile = mobile
 		local sidebarWidth = mobile and 70 or 220
@@ -2459,8 +2478,7 @@ function Velora:CreateWindow(options)
 		task.defer(function()
 			if root.Parent then
 				local size = root.AbsoluteSize
-				local position = root.AbsolutePosition
-				local center = position + size / 2
+				local center = root.AbsolutePosition - self.WindowLayer.AbsolutePosition + size / 2
 				center = Vector2.new(
 					math.clamp(center.X, size.X / 2 + 4, math.max(size.X / 2 + 4, viewport.X - size.X / 2 - 4)),
 					math.clamp(center.Y, size.Y / 2 + 4, math.max(size.Y / 2 + 4, viewport.Y - size.Y / 2 - 4))
@@ -2491,6 +2509,8 @@ function Velora:CreateWindow(options)
 		bindCamera()
 		updateResponsive()
 	end))
+	window._maid:Give(self.WindowLayer:GetPropertyChangedSignal("AbsolutePosition"):Connect(updateResponsive))
+	window._maid:Give(self.WindowLayer:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateResponsive))
 	bindCamera()
 	task.defer(updateResponsive)
 
@@ -2531,6 +2551,9 @@ end
 
 function Window:SetVisible(visible)
 	visible = visible == true
+	if not visible then
+		self._ui:_cancelKeybindCapture()
+	end
 	if visible and self._minimized then
 		self:Restore()
 	elseif self.Root then
@@ -2602,6 +2625,7 @@ function Window:Minimize()
 		and openButton._visibilityOverride ~= false
 	self._minimized = true
 	self._lastExpandedSize = self.Root.Size
+	self._ui:_cancelKeybindCapture()
 	self._ui:_closePopup()
 	self._ui:CloseCommandPalette()
 	if useOpenButton then
@@ -4717,6 +4741,30 @@ function Section:AddKeybind(first, second)
 		return self.Active
 	end
 
+	local function setCapturing(capturing)
+		if capturing then
+			local previous = self._ui._capturingKeybind
+			if previous and previous ~= control and not previous._destroyed and previous._cancelCapture then
+				previous:_cancelCapture()
+			end
+			control.Capturing = true
+			self._ui._capturingKeybind = control
+			selector.Text = "Press a key..."
+			self._ui:_tween(selectorStroke, 0.12, { Color = self._ui.Theme.Accent, Transparency = 0 })
+		else
+			control.Capturing = false
+			if self._ui._capturingKeybind == control then
+				self._ui._capturingKeybind = nil
+			end
+			control:_render(control._value)
+			self._ui:_tween(selectorStroke, 0.12, { Color = self._ui.Theme.Border, Transparency = 0.35 })
+		end
+	end
+
+	function control:_cancelCapture()
+		setCapturing(false)
+	end
+
 	local function trigger(active, source)
 		control.Active = active == true
 		control.Triggered:Fire(control.Active, source)
@@ -4727,17 +4775,14 @@ function Section:AddKeybind(first, second)
 		if control.Disabled or options.CanChange == false then
 			return
 		end
-		control.Capturing = true
-		selector.Text = "Press a key..."
-		self._ui:_tween(selectorStroke, 0.12, { Color = self._ui.Theme.Accent, Transparency = 0 })
+		setCapturing(true)
 	end))
 	control._maid:Give(UserInputService.InputBegan:Connect(function(input, processed)
 		if control.Capturing then
 			if input.KeyCode == Enum.KeyCode.Escape then
-				control.Capturing = false
-				control:_render(control._value)
+				setCapturing(false)
 			elseif input.KeyCode == Enum.KeyCode.Backspace or input.KeyCode == Enum.KeyCode.Delete then
-				control.Capturing = false
+				setCapturing(false)
 				control:Set(nil, { Source = "user" })
 			else
 				local candidate = input.KeyCode ~= Enum.KeyCode.Unknown and input.KeyCode or input.UserInputType
@@ -4749,12 +4794,9 @@ function Section:AddKeybind(first, second)
 					end
 				end
 				if not blocked and candidate ~= Enum.UserInputType.Keyboard then
-					control.Capturing = false
+					setCapturing(false)
 					control:Set(candidate, { Source = "user" })
 				end
-			end
-			if not control.Capturing then
-				self._ui:_tween(selectorStroke, 0.12, { Color = self._ui.Theme.Border, Transparency = 0.35 })
 			end
 			return
 		end
@@ -4779,6 +4821,11 @@ function Section:AddKeybind(first, second)
 			trigger(false, "input")
 		end
 	end))
+	control._maid:Give(function()
+		if self._ui._capturingKeybind == control then
+			self._ui._capturingKeybind = nil
+		end
+	end)
 	return self:_finishControl(control, options.FireOnInit)
 end
 
