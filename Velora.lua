@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.1.0"
+Velora.Version = "1.2.0"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -26,6 +26,20 @@ local FontAliases = {
 
 local function resolveFont(font)
 	return FontAliases[font] or font
+end
+
+local function truncateUtf8(text, maximumLength)
+	local limit = math.max(0, math.floor(tonumber(maximumLength) or 0))
+	local length = utf8.len(text)
+	if length and length > limit then
+		local nextByte = utf8.offset(text, limit + 1)
+		return nextByte and string.sub(text, 1, nextByte - 1) or text, limit
+	end
+	if not length and #text > limit then
+		local truncated = string.sub(text, 1, limit)
+		return truncated, utf8.len(truncated) or #truncated
+	end
+	return text, length or #text
 end
 
 Velora.Fonts = Typography
@@ -1099,10 +1113,14 @@ function Velora.new(options)
 	self.Flags = self.State._values
 
 	local parent = resolveParent(options)
+	local modalName = options.Name .. "_Modal"
 	if options.DestroyExisting then
-		local existing = parent:FindFirstChild(options.Name)
-		if existing and existing:IsA("ScreenGui") then
-			existing:Destroy()
+		for _, guiName in ipairs({ options.Name, modalName }) do
+			for _, existing in ipairs(parent:GetChildren()) do
+				if existing.Name == guiName and existing:IsA("ScreenGui") then
+					existing:Destroy()
+				end
+			end
 		end
 	end
 
@@ -1116,6 +1134,20 @@ function Velora.new(options)
 	})
 	self._maid:Give(self.ScreenGui)
 	self._maid:Give(self.ScreenGui.Destroying:Connect(function()
+		if not self._destroyed then
+			self:Destroy()
+		end
+	end))
+	self.ModalGui = create("ScreenGui", {
+		Name = modalName,
+		IgnoreGuiInset = true,
+		ResetOnSpawn = false,
+		ZIndexBehavior = Enum.ZIndexBehavior.Sibling,
+		DisplayOrder = (tonumber(options.DisplayOrder) or 1000) + 1,
+		Parent = parent,
+	})
+	self._maid:Give(self.ModalGui)
+	self._maid:Give(self.ModalGui.Destroying:Connect(function()
 		if not self._destroyed then
 			self:Destroy()
 		end
@@ -1139,7 +1171,7 @@ function Velora.new(options)
 		BackgroundTransparency = 1,
 		Size = UDim2.fromScale(1, 1),
 		ZIndex = 700,
-		Parent = self.ScreenGui,
+		Parent = self.ModalGui,
 	})
 	self.NotificationLayer = create("Frame", {
 		Name = "Notifications",
@@ -1202,11 +1234,21 @@ function Velora:_updateRestoreButton()
 		return
 	end
 	local hasVisibleWindow = false
+	local minimizedTarget
 	for _, window in ipairs(self._windows) do
-		if window.Root and window.Root.Visible then
-			hasVisibleWindow = true
-			break
+		if not window._destroyed and window.Root and window._minimizedToOpenButton then
+			if handle.Target == window then
+				minimizedTarget = window
+			elseif not minimizedTarget then
+				minimizedTarget = window
+			end
 		end
+		if not window._destroyed and window.Root and window.Root.Visible then
+			hasVisibleWindow = true
+		end
+	end
+	if minimizedTarget then
+		handle.Target = minimizedTarget
 	end
 	local hasWindows = #self._windows > 0
 	local allWindowsHidden = hasWindows and not hasVisibleWindow
@@ -1220,11 +1262,14 @@ function Velora:_updateRestoreButton()
 	then
 		automatic = false
 	end
-	local visible = handle._visibilityOverride
-	if visible == nil then
-		visible = automatic
-	else
-		visible = hasWindows and visible
+	local visible = minimizedTarget ~= nil
+	if not visible then
+		visible = handle._visibilityOverride
+		if visible == nil then
+			visible = automatic
+		else
+			visible = hasWindows and visible
+		end
 	end
 	handle.Root.Visible = handle.Options.Enabled ~= false and visible
 end
@@ -1239,15 +1284,17 @@ function Velora:SetVisible(visible)
 	if self.WindowLayer then
 		self.WindowLayer.Visible = visible
 		self.PopupLayer.Visible = visible
-		self.ModalLayer.Visible = visible
 		self.NotificationLayer.Visible = visible
+	end
+	if self.ModalGui then
+		self.ModalGui.Enabled = visible
 	end
 	self:_updateRestoreButton()
 	return self
 end
 
 function Velora:IsVisible()
-	return self._visible == true and self.ScreenGui ~= nil
+	return not self._destroyed and self._visible == true and self.ScreenGui ~= nil and self.ScreenGui.Parent ~= nil
 end
 
 function Velora:Toggle()
@@ -1293,6 +1340,12 @@ function Velora:Destroy()
 	self.State:Destroy()
 	self.ThemeChanged:Destroy()
 	self._maid:Clean()
+	self.ScreenGui = nil
+	self.ModalGui = nil
+	self.ModalLayer = nil
+	self.WindowLayer = nil
+	self.PopupLayer = nil
+	self.NotificationLayer = nil
 	table.clear(self._windows)
 	table.clear(self._notifications)
 	table.clear(self._commands)
@@ -1545,6 +1598,13 @@ function OpenButtonHandle:Edit(options)
 	if options == false then
 		options = { Enabled = false }
 	end
+	if type(options) == "table" and options.Enabled == false then
+		for _, window in ipairs(shallowCopy(self._ui._windows)) do
+			if not window._destroyed and window._minimizedToOpenButton then
+				window:Restore()
+			end
+		end
+	end
 	if type(options) == "table" then
 		self.Options = deepMerge(self.Options, options)
 	end
@@ -1582,6 +1642,13 @@ function OpenButtonHandle:Visible(visible)
 	if self._destroyed or not self._ui then
 		return self
 	end
+	if visible == false then
+		for _, window in ipairs(shallowCopy(self._ui._windows)) do
+			if not window._destroyed and window._minimizedToOpenButton then
+				window:Restore()
+			end
+		end
+	end
 	if visible == nil then
 		self._visibilityOverride = nil
 	else
@@ -1612,16 +1679,28 @@ function OpenButtonHandle:Open()
 		end
 		self.Target = target
 	end
-	if target then
-		target:SetVisible(true)
-	end
 	self._ui:SetVisible(true)
+	if target then
+		if target._minimized then
+			target:Restore()
+		else
+			target:SetVisible(true)
+		end
+	end
+	self._ui:_updateRestoreButton()
 	return self
 end
 
 function OpenButtonHandle:Destroy()
 	if self._destroyed then
 		return
+	end
+	if self._ui and not self._ui._destroyed then
+		for _, window in ipairs(shallowCopy(self._ui._windows)) do
+			if not window._destroyed and window._minimizedToOpenButton then
+				window:Restore()
+			end
+		end
 	end
 	self._destroyed = true
 	local ui = self._ui
@@ -1837,6 +1916,7 @@ function Velora:CreateWindow(options)
 		ShowUser = true,
 		CloseBehavior = "Hide",
 		ConfirmOnClose = false,
+		MinimizeToOpenButton = true,
 	}, options or {})
 	if providedOptions.Name and providedOptions.Title == nil then
 		options.Title = providedOptions.Name
@@ -1865,6 +1945,7 @@ function Velora:CreateWindow(options)
 	window._tabs = {}
 	window._selectedTab = nil
 	window._minimized = false
+	window._minimizedToOpenButton = false
 	window._mobile = false
 	window._requestedSize = Vector2.new(options.Size.X.Offset, options.Size.Y.Offset)
 	window._lastExpandedSize = options.Size
@@ -2449,8 +2530,11 @@ function Window:SetTitle(title, subtitle)
 end
 
 function Window:SetVisible(visible)
-	if self.Root then
-		self.Root.Visible = visible == true
+	visible = visible == true
+	if visible and self._minimized then
+		self:Restore()
+	elseif self.Root then
+		self.Root.Visible = visible
 	end
 	self._ui:_updateRestoreButton()
 	return self
@@ -2510,14 +2594,36 @@ function Window:Minimize()
 	if self._minimized or not self.Root then
 		return self
 	end
+	local openButton = self._ui.OpenButton
+	local useOpenButton = self.Options.MinimizeToOpenButton ~= false
+		and openButton
+		and openButton:_isAlive()
+		and openButton.Options.Enabled ~= false
+		and openButton._visibilityOverride ~= false
 	self._minimized = true
 	self._lastExpandedSize = self.Root.Size
-	self.Sidebar.Visible = false
-	self.Content.Visible = false
-	self.TopDivider.Visible = false
-	self.PageTitle.Visible = false
-	self.ResizeGrip.Visible = false
-	self._ui:_tween(self.Root, 0.2, { Size = UDim2.fromOffset(330, 58) })
+	self._ui:_closePopup()
+	self._ui:CloseCommandPalette()
+	if useOpenButton then
+		for _, window in ipairs(shallowCopy(self._ui._windows)) do
+			if window ~= self and not window._destroyed and window._minimizedToOpenButton then
+				window:Restore()
+			end
+		end
+		self._minimizedToOpenButton = true
+		openButton.Target = self
+		self.Root.Visible = false
+		openButton:_render()
+	else
+		self._minimizedToOpenButton = false
+		self.Sidebar.Visible = false
+		self.Content.Visible = false
+		self.TopDivider.Visible = false
+		self.PageTitle.Visible = false
+		self.ResizeGrip.Visible = false
+		self._ui:_tween(self.Root, 0.2, { Size = UDim2.fromOffset(330, 58) })
+	end
+	self._ui:_updateRestoreButton()
 	return self
 end
 
@@ -2525,16 +2631,25 @@ function Window:Restore()
 	if not self._minimized or not self.Root then
 		return self
 	end
+	local minimizedToOpenButton = self._minimizedToOpenButton
+	local expandedSize = self._lastExpandedSize or self.Options.Size
 	self._minimized = false
+	self._minimizedToOpenButton = false
+	self.Root.Visible = true
 	self.Sidebar.Visible = true
 	self.Content.Visible = true
 	self.TopDivider.Visible = true
 	self.PageTitle.Visible = true
 	self.ResizeGrip.Visible = self.Options.Resizable and not self._mobile
-	self._ui:_tween(self.Root, 0.2, { Size = self._lastExpandedSize })
+	if minimizedToOpenButton then
+		self.Root.Size = expandedSize
+	else
+		self._ui:_tween(self.Root, 0.2, { Size = expandedSize })
+	end
 	if self._updateResponsive then
 		task.defer(self._updateResponsive)
 	end
+	self._ui:_updateRestoreButton()
 	return self
 end
 
@@ -2631,7 +2746,14 @@ function Window:Destroy()
 	table.clear(self._tabs)
 	self.Root = nil
 	if self._ui.OpenButton and self._ui.OpenButton.Target == self then
-		self._ui.OpenButton.Target = self._ui._windows[1]
+		local fallback
+		for _, window in ipairs(self._ui._windows) do
+			if not window._destroyed and window.Root and window._minimizedToOpenButton then
+				fallback = window
+				break
+			end
+		end
+		self._ui.OpenButton.Target = fallback or self._ui._windows[1]
 		self._ui.OpenButton:_render()
 	end
 	self._ui:_updateRestoreButton()
@@ -3480,6 +3602,9 @@ function Section:AddButton(first, second)
 	end
 	local actionText = tostring(options.ActionText or options.ButtonText or "Run")
 	local actionWidth = math.clamp(textWidth(actionText, 11, Enum.Font.GothamMedium) + 25, 62, 120)
+	local actionVariant = options.Variant or (options.Danger and "Danger" or "Secondary")
+	local actionBackground = actionVariant == "Primary" and "Accent" or (actionVariant == "Danger" and "Danger" or "SurfaceHover")
+	local actionForeground = actionVariant == "Secondary" and "Text" or "AccentText"
 	local action = create("TextLabel", {
 		Name = "Action",
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -3499,8 +3624,8 @@ function Section:AddButton(first, second)
 	end
 	addCorner(action, 7)
 	self._ui:_bindTheme(action, {
-		BackgroundColor3 = options.Variant == "Primary" and "Accent" or "SurfaceHover",
-		TextColor3 = options.Variant == "Primary" and "AccentText" or "Text",
+		BackgroundColor3 = actionBackground,
+		TextColor3 = actionForeground,
 	})
 	local hitbox = create("TextButton", {
 		Name = "Hitbox",
@@ -3878,8 +4003,8 @@ function Section:AddInput(first, second)
 	end
 	local function sanitize(value)
 		local text = tostring(value == nil and "" or value)
-		if options.MaxLength and #text > options.MaxLength then
-			text = string.sub(text, 1, options.MaxLength)
+		if options.MaxLength then
+			text = truncateUtf8(text, options.MaxLength)
 		end
 		if options.Numeric then
 			local number = tonumber(text)
@@ -3996,12 +4121,17 @@ function Section:AddInput(first, second)
 				return
 			end
 			local text = textBox.Text
-			if options.MaxLength and #text > options.MaxLength then
-				liveGuard = true
-				text = string.sub(text, 1, options.MaxLength)
-				textBox.Text = text
-				textBox.CursorPosition = #text + 1
-				liveGuard = false
+			local truncatedLength
+			if options.MaxLength then
+				local truncated
+				truncated, truncatedLength = truncateUtf8(text, options.MaxLength)
+				if truncated ~= text then
+					liveGuard = true
+					text = truncated
+					textBox.Text = text
+					textBox.CursorPosition = truncatedLength + 1
+					liveGuard = false
+				end
 			end
 			if not options.Numeric or tonumber(text) then
 				control:Set(text, { Source = "user" })
@@ -6117,6 +6247,9 @@ function Velora:Notify(options)
 end
 
 function Velora:Dialog(options)
+	if self._destroyed or not self.ModalLayer or not self.ModalLayer.Parent then
+		return nil
+	end
 	options = type(options) == "table" and shallowCopy(options) or { Content = tostring(options or "") }
 	options.Title = tostring(options.Title or "Dialog")
 	options.Content = tostring(options.Content or options.Description or "")
