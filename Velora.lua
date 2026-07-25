@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.2.4"
+Velora.Version = "1.3.0"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -347,6 +347,19 @@ local function normalizeFlag(text)
 	return flag ~= "" and flag or "control"
 end
 
+local function decimalPlaces(value)
+	local text = string.lower(tostring(math.abs(tonumber(value) or 0)))
+	local mantissa, exponentText = string.match(text, "^([%d%.]+)e([%+%-]?%d+)$")
+	if mantissa then
+		local decimal = string.find(mantissa, ".", 1, true)
+		local fractionDigits = decimal and (#mantissa - decimal) or 0
+		return math.min(15, math.max(0, fractionDigits - (tonumber(exponentText) or 0)))
+	end
+	text = string.gsub(text, "0+$", "")
+	local decimal = string.find(text, ".", 1, true)
+	return math.min(15, decimal and (#text - decimal) or 0)
+end
+
 local function roundToStep(value, step, minimum)
 	step = math.abs(tonumber(step) or 1)
 	minimum = tonumber(minimum) or 0
@@ -354,8 +367,8 @@ local function roundToStep(value, step, minimum)
 		return value
 	end
 	local rounded = math.floor(((value - minimum) / step) + 0.5) * step + minimum
-	local decimals = math.max(0, math.ceil(-math.log10(step)))
-	local multiplier = 10 ^ math.min(decimals, 6)
+	local decimals = math.max(decimalPlaces(step), decimalPlaces(minimum))
+	local multiplier = 10 ^ decimals
 	return math.floor(rounded * multiplier + 0.5) / multiplier
 end
 
@@ -400,8 +413,8 @@ local Themes = {
 		Border = Color3.fromRGB(46, 52, 68),
 		Text = Color3.fromRGB(239, 241, 247),
 		Muted = Color3.fromRGB(145, 153, 174),
-		Accent = Color3.fromRGB(124, 99, 255),
-		AccentDark = Color3.fromRGB(88, 69, 204),
+		Accent = Color3.fromRGB(108, 82, 240),
+		AccentDark = Color3.fromRGB(79, 58, 196),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(63, 201, 138),
 		Warning = Color3.fromRGB(245, 181, 68),
@@ -448,8 +461,8 @@ local Themes = {
 		Border = Color3.fromRGB(73, 44, 64),
 		Text = Color3.fromRGB(250, 238, 246),
 		Muted = Color3.fromRGB(179, 143, 166),
-		Accent = Color3.fromRGB(241, 92, 153),
-		AccentDark = Color3.fromRGB(190, 62, 118),
+		Accent = Color3.fromRGB(204, 59, 128),
+		AccentDark = Color3.fromRGB(164, 42, 99),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(71, 202, 137),
 		Warning = Color3.fromRGB(242, 178, 68),
@@ -480,8 +493,8 @@ local Themes = {
 		Border = Color3.fromRGB(71, 51, 99),
 		Text = Color3.fromRGB(246, 239, 255),
 		Muted = Color3.fromRGB(170, 148, 194),
-		Accent = Color3.fromRGB(168, 108, 255),
-		AccentDark = Color3.fromRGB(118, 72, 199),
+		Accent = Color3.fromRGB(142, 79, 225),
+		AccentDark = Color3.fromRGB(105, 55, 184),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(73, 209, 145),
 		Warning = Color3.fromRGB(246, 185, 73),
@@ -528,8 +541,8 @@ local Themes = {
 		Border = Color3.fromRGB(222, 194, 207),
 		Text = Color3.fromRGB(54, 37, 48),
 		Muted = Color3.fromRGB(125, 91, 109),
-		Accent = Color3.fromRGB(225, 104, 153),
-		AccentDark = Color3.fromRGB(183, 71, 122),
+		Accent = Color3.fromRGB(196, 72, 125),
+		AccentDark = Color3.fromRGB(158, 51, 99),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(49, 156, 105),
 		Warning = Color3.fromRGB(196, 126, 33),
@@ -544,8 +557,8 @@ local Themes = {
 		Border = Color3.fromRGB(204, 189, 169),
 		Text = Color3.fromRGB(56, 47, 42),
 		Muted = Color3.fromRGB(117, 101, 91),
-		Accent = Color3.fromRGB(193, 108, 62),
-		AccentDark = Color3.fromRGB(151, 78, 44),
+		Accent = Color3.fromRGB(174, 88, 45),
+		AccentDark = Color3.fromRGB(139, 66, 32),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(68, 148, 104),
 		Warning = Color3.fromRGB(185, 116, 29),
@@ -560,8 +573,8 @@ local Themes = {
 		Border = Color3.fromRGB(83, 38, 49),
 		Text = Color3.fromRGB(253, 239, 242),
 		Muted = Color3.fromRGB(184, 135, 146),
-		Accent = Color3.fromRGB(239, 68, 92),
-		AccentDark = Color3.fromRGB(184, 39, 62),
+		Accent = Color3.fromRGB(211, 46, 73),
+		AccentDark = Color3.fromRGB(169, 31, 54),
 		AccentText = Color3.fromRGB(255, 255, 255),
 		Success = Color3.fromRGB(67, 195, 129),
 		Warning = Color3.fromRGB(241, 175, 64),
@@ -601,6 +614,40 @@ local Themes = {
 		Overlay = Color3.fromRGB(0, 0, 0),
 	},
 }
+
+local function colorLuminance(color)
+	local function channel(value)
+		if value <= 0.04045 then
+			return value / 12.92
+		end
+		return ((value + 0.055) / 1.055) ^ 2.4
+	end
+	return 0.2126 * channel(color.R) + 0.7152 * channel(color.G) + 0.0722 * channel(color.B)
+end
+
+local function bestContrastingText(background)
+	local light = Color3.fromRGB(255, 255, 255)
+	local dark = Color3.fromRGB(15, 18, 24)
+	local backgroundLuminance = colorLuminance(background)
+	local lightContrast = 1.05 / (backgroundLuminance + 0.05)
+	local darkContrast = (backgroundLuminance + 0.05) / (colorLuminance(dark) + 0.05)
+	return lightContrast >= darkContrast and light or dark
+end
+
+local function darkerAccent(accent)
+	return accent:Lerp(Color3.new(0, 0, 0), 0.22)
+end
+
+local function interactiveColor(background, foreground, strength)
+	local target = colorLuminance(foreground) > 0.5 and Color3.new(0, 0, 0) or Color3.new(1, 1, 1)
+	return background:Lerp(target, strength)
+end
+
+for _, theme in pairs(Themes) do
+	theme.DangerText = bestContrastingText(theme.Danger)
+	theme.SuccessText = bestContrastingText(theme.Success)
+	theme.WarningText = bestContrastingText(theme.Warning)
+end
 
 Velora.Themes = Themes
 
@@ -982,6 +1029,19 @@ function Velora:RegisterTheme(name, tokens)
 	assert(type(name) == "string", "Theme name must be a string")
 	assert(type(tokens) == "table", "Theme tokens must be a table")
 	local theme = deepMerge(Themes.Midnight, tokens)
+	if tokens.Accent ~= nil then
+		theme.AccentDark = tokens.AccentDark or darkerAccent(theme.Accent)
+		theme.AccentText = tokens.AccentText or bestContrastingText(theme.Accent)
+	end
+	if tokens.Danger ~= nil and tokens.DangerText == nil then
+		theme.DangerText = bestContrastingText(theme.Danger)
+	end
+	if tokens.Success ~= nil and tokens.SuccessText == nil then
+		theme.SuccessText = bestContrastingText(theme.Success)
+	end
+	if tokens.Warning ~= nil and tokens.WarningText == nil then
+		theme.WarningText = bestContrastingText(theme.Warning)
+	end
 	for token in pairs(Themes.Midnight) do
 		assert(typeof(theme[token]) == "Color3", "Theme token " .. tostring(token) .. " must be a Color3")
 	end
@@ -1006,6 +1066,19 @@ function Velora:SetTheme(theme, setOptions)
 	elseif type(theme) == "table" then
 		nextTheme = deepMerge(self.Theme, theme)
 		themeName = "Custom"
+		if theme.Accent ~= nil then
+			nextTheme.AccentDark = theme.AccentDark or darkerAccent(nextTheme.Accent)
+			nextTheme.AccentText = theme.AccentText or bestContrastingText(nextTheme.Accent)
+		end
+		if theme.Danger ~= nil and theme.DangerText == nil then
+			nextTheme.DangerText = bestContrastingText(nextTheme.Danger)
+		end
+		if theme.Success ~= nil and theme.SuccessText == nil then
+			nextTheme.SuccessText = bestContrastingText(nextTheme.Success)
+		end
+		if theme.Warning ~= nil and theme.WarningText == nil then
+			nextTheme.WarningText = bestContrastingText(nextTheme.Warning)
+		end
 	end
 	if not nextTheme then
 		return false, "Unknown theme"
@@ -1019,6 +1092,8 @@ function Velora:SetTheme(theme, setOptions)
 	self.ThemeName = themeName
 	if self.Options.Accent then
 		self.Theme.Accent = self.Options.Accent
+		self.Theme.AccentDark = darkerAccent(self.Options.Accent)
+		self.Theme.AccentText = bestContrastingText(self.Options.Accent)
 	end
 	for object, mapping in pairs(self._themeBindings) do
 		if object.Parent then
@@ -1058,7 +1133,11 @@ function Velora:SetAccent(color, setOptions)
 		return false
 	end
 	self.Options.Accent = color
-	return self:SetTheme({ Accent = color }, setOptions)
+	return self:SetTheme({
+		Accent = color,
+		AccentDark = darkerAccent(color),
+		AccentText = bestContrastingText(color),
+	}, setOptions)
 end
 
 function Velora:GetFlag(flag)
@@ -1109,6 +1188,8 @@ function Velora.new(options)
 	self.ThemeName = self._themes[options.Theme] and options.Theme or "Midnight"
 	if options.Accent then
 		self.Theme.Accent = options.Accent
+		self.Theme.AccentDark = darkerAccent(options.Accent)
+		self.Theme.AccentText = bestContrastingText(options.Accent)
 	end
 	self._themeBindings = {}
 	self._themeBindingConnections = {}
@@ -1956,8 +2037,11 @@ function Velora:CreateWindow(options)
 		Resizable = true,
 		Search = true,
 		ShowUser = true,
-		CloseBehavior = "Hide",
-		ConfirmOnClose = false,
+		CloseBehavior = "Destroy",
+		ConfirmOnClose = true,
+		CloseConfirmTitle = "是否关闭窗口",
+		CloseConfirmCancel = "否",
+		CloseConfirmConfirm = "是",
 		MinimizeToOpenButton = true,
 	}, options or {})
 	if providedOptions.Name and providedOptions.Title == nil then
@@ -1988,6 +2072,7 @@ function Velora:CreateWindow(options)
 	window._selectedTab = nil
 	window._minimized = false
 	window._minimizedToOpenButton = false
+	window._closeDialog = nil
 	window._mobile = false
 	window._requestedSize = Vector2.new(options.Size.X.Offset, options.Size.Y.Offset)
 	window._lastExpandedSize = options.Size
@@ -2041,7 +2126,7 @@ function Velora:CreateWindow(options)
 	create("UIGradient", {
 		Color = ColorSequence.new({
 			ColorSequenceKeypoint.new(0, Color3.new(1, 1, 1)),
-			ColorSequenceKeypoint.new(0.5, Color3.fromRGB(210, 210, 255)),
+			ColorSequenceKeypoint.new(0.5, Color3.new(1, 1, 1)),
 			ColorSequenceKeypoint.new(1, Color3.new(1, 1, 1)),
 		}),
 		Transparency = NumberSequence.new({
@@ -2144,31 +2229,66 @@ function Velora:CreateWindow(options)
 			Size = UDim2.fromOffset(32, 32),
 			AutoButtonColor = false,
 			BackgroundColor3 = self.Theme.SurfaceAlt,
-			BackgroundTransparency = 1,
+			BackgroundTransparency = 0.55,
 			BorderSizePixel = 0,
 			Font = Enum.Font.GothamBold,
 			Text = text,
 			TextSize = 16,
-			TextColor3 = danger and self.Theme.Danger or self.Theme.Muted,
+			TextColor3 = self.Theme.Muted,
 			ZIndex = 8,
 			Parent = topbar,
 		})
-		addCorner(button, 8)
+		addCorner(button, 9)
 		self:_bindTheme(button, {
 			BackgroundColor3 = "SurfaceAlt",
-			TextColor3 = danger and "Danger" or "Muted",
+			TextColor3 = "Muted",
 		})
+		local hovered = false
+		local pressed = false
+		local function renderState(duration)
+			local background = self.Theme.SurfaceAlt
+			local foreground = self.Theme.Muted
+			local transparency = 0.55
+			if pressed then
+				background = danger and self.Theme.Danger or self.Theme.SurfaceHover
+				foreground = danger and self.Theme.DangerText or self.Theme.Text
+				transparency = 0
+			elseif hovered then
+				background = danger and self.Theme.Danger or self.Theme.SurfaceHover
+				foreground = danger and self.Theme.Danger or self.Theme.Text
+				transparency = danger and 0.82 or 0
+			end
+			self:_tween(button, duration, {
+				BackgroundColor3 = background,
+				BackgroundTransparency = transparency,
+				TextColor3 = foreground,
+			})
+		end
 		window._maid:Give(button.MouseEnter:Connect(function()
-			self:_tween(button, 0.12, { BackgroundTransparency = 0 })
+			hovered = true
+			renderState(0.12)
 		end))
 		window._maid:Give(button.MouseLeave:Connect(function()
-			self:_tween(button, 0.12, { BackgroundTransparency = 1 })
+			hovered = false
+			pressed = false
+			renderState(0.12)
+		end))
+		window._maid:Give(button.MouseButton1Down:Connect(function()
+			pressed = true
+			renderState(0.08)
+		end))
+		window._maid:Give(button.MouseButton1Up:Connect(function()
+			pressed = false
+			renderState(0.1)
+		end))
+		window._maid:Give(self.ThemeChanged:Connect(function()
+			renderState(0.18)
 		end))
 		return button
 	end
 
-	local closeButton = makeTopButton("Close", "X", 1, true)
-	local minimizeButton = makeTopButton("Minimize", "-", 2, false)
+	local closeButton = makeTopButton("Close", "×", 1, true)
+	local minimizeButton = makeTopButton("Minimize", "−", 2, false)
 	local searchButton
 	if options.Search then
 		searchButton = makeTopButton("Search", "?", 3, false)
@@ -2372,6 +2492,9 @@ function Velora:CreateWindow(options)
 	local startCenter
 	local moved = false
 	window._maid:Give(topbar.InputBegan:Connect(function(input)
+		if dragging then
+			return
+		end
 		if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 			return
 		end
@@ -2386,7 +2509,10 @@ function Velora:CreateWindow(options)
 		moved = false
 	end))
 	window._maid:Give(UserInputService.InputChanged:Connect(function(input)
-		if not dragging or (input ~= dragInput and input.UserInputType ~= Enum.UserInputType.MouseMovement) then
+		local mouseMovement = dragInput
+			and dragInput.UserInputType == Enum.UserInputType.MouseButton1
+			and input.UserInputType == Enum.UserInputType.MouseMovement
+		if not dragging or (input ~= dragInput and not mouseMovement) then
 			return
 		end
 		local current = Vector2.new(input.Position.X, input.Position.Y)
@@ -2395,25 +2521,30 @@ function Velora:CreateWindow(options)
 			moved = true
 		end
 		if moved then
-			local viewport = self.WindowLayer.AbsoluteSize
-			local half = root.AbsoluteSize / 2
 			local center = startCenter + delta
-			center = Vector2.new(
-				math.clamp(center.X, half.X + 8, math.max(half.X + 8, viewport.X - half.X - 8)),
-				math.clamp(center.Y, half.Y + 8, math.max(half.Y + 8, viewport.Y - half.Y - 8))
-			)
 			root.Position = UDim2.fromOffset(center.X, center.Y)
 		end
 	end))
-	window._maid:Give(UserInputService.InputEnded:Connect(function(input)
-		if input == dragInput or input.UserInputType == Enum.UserInputType.MouseButton1 then
-			local shouldSave = dragging and moved
-			dragging = false
-			dragInput = nil
-			if shouldSave then
-				self:_autoSaveIfEnabled("ui")
-			end
+	local function finishWindowDragging(savePosition)
+		local shouldSave = dragging and moved and savePosition
+		dragging = false
+		dragInput = nil
+		if shouldSave then
+			self:_autoSaveIfEnabled("ui")
 		end
+	end
+	window._maid:Give(UserInputService.InputEnded:Connect(function(input)
+		if not dragging or not dragInput then
+			return
+		end
+		local mouseDragEnded = dragInput.UserInputType == Enum.UserInputType.MouseButton1
+			and input.UserInputType == Enum.UserInputType.MouseButton1
+		if input == dragInput or mouseDragEnded then
+			finishWindowDragging(true)
+		end
+	end))
+	window._maid:Give(UserInputService.WindowFocusReleased:Connect(function()
+		finishWindowDragging(true)
 	end))
 
 	local resizing = false
@@ -2498,17 +2629,6 @@ function Velora:CreateWindow(options)
 			end
 			root.Size = UDim2.fromOffset(targetSize.X, targetSize.Y)
 		end
-		task.defer(function()
-			if root.Parent then
-				local size = root.AbsoluteSize
-				local center = root.AbsolutePosition - self.WindowLayer.AbsolutePosition + size / 2
-				center = Vector2.new(
-					math.clamp(center.X, size.X / 2 + 4, math.max(size.X / 2 + 4, viewport.X - size.X / 2 - 4)),
-					math.clamp(center.Y, size.Y / 2 + 4, math.max(size.Y / 2 + 4, viewport.Y - size.Y / 2 - 4))
-				)
-				root.Position = UDim2.fromOffset(center.X, center.Y)
-			end
-		end)
 	end
 	window._updateResponsive = updateResponsive
 	local cameraConnection
@@ -2609,29 +2729,53 @@ end
 Window.SetVisibility = Window.SetVisible
 
 function Window:Close()
+	if self._destroyed or self._ui._destroyed then
+		return self
+	end
+	local shouldDestroy = string.lower(tostring(self.Options.CloseBehavior or "Destroy")) == "destroy"
+	local function closeWindow()
+		if self._destroyed or self._ui._destroyed then
+			return
+		end
+		if shouldDestroy then
+			self:Destroy()
+		else
+			self._ui:SetVisible(false)
+		end
+	end
 	if self.Options.ConfirmOnClose then
-		self._ui:Dialog({
-			Title = "Close window?",
-			Content = "Choose whether to hide this interface.",
+		if self._closeDialog and not self._closeDialog._closed then
+			return self
+		end
+		local content = self.Options.CloseConfirmContent
+		if content == nil then
+			content = shouldDestroy
+				and "关闭后将销毁当前窗口，且不会显示顶部恢复悬浮窗。"
+				or "关闭后可使用快捷键重新打开窗口。"
+		end
+		local dialog = self._ui:Dialog({
+			Title = tostring(self.Options.CloseConfirmTitle or "是否关闭窗口"),
+			Content = tostring(content),
+			Dismissible = self.Options.CloseConfirmDismissible ~= false,
 			Buttons = {
-				{ Title = "Cancel", Variant = "Secondary" },
+				{ Title = tostring(self.Options.CloseConfirmCancel or "否"), Variant = "Secondary" },
 				{
-					Title = "Close",
+					Title = tostring(self.Options.CloseConfirmConfirm or "是"),
 					Variant = "Danger",
-					Callback = function()
-						if self.Options.CloseBehavior == "Destroy" then
-							self:Destroy()
-						else
-							self._ui:SetVisible(false)
-						end
-					end,
+					Callback = closeWindow,
 				},
 			},
 		})
-	elseif self.Options.CloseBehavior == "Destroy" then
-		self:Destroy()
+		self._closeDialog = dialog
+		if dialog then
+			dialog.Closed:Once(function()
+				if self._closeDialog == dialog then
+					self._closeDialog = nil
+				end
+			end)
+		end
 	else
-		self._ui:SetVisible(false)
+		closeWindow()
 	end
 	return self
 end
@@ -2781,6 +2925,11 @@ function Window:Destroy()
 		return
 	end
 	self._destroyed = true
+	local closeDialog = self._closeDialog
+	self._closeDialog = nil
+	if closeDialog and not closeDialog._closed then
+		closeDialog:Close(nil)
+	end
 	for _, tab in ipairs(shallowCopy(self._tabs)) do
 		tab:Destroy()
 	end
@@ -3651,7 +3800,7 @@ function Section:AddButton(first, second)
 	local actionWidth = math.clamp(textWidth(actionText, 11, Enum.Font.GothamMedium) + 25, 62, 120)
 	local actionVariant = options.Variant or (options.Danger and "Danger" or "Secondary")
 	local actionBackground = actionVariant == "Primary" and "Accent" or (actionVariant == "Danger" and "Danger" or "SurfaceHover")
-	local actionForeground = actionVariant == "Secondary" and "Text" or "AccentText"
+	local actionForeground = actionVariant == "Secondary" and "Text" or (actionVariant == "Danger" and "DangerText" or "AccentText")
 	local action = create("TextLabel", {
 		Name = "Action",
 		AnchorPoint = Vector2.new(1, 0.5),
@@ -3747,12 +3896,14 @@ function Section:AddToggle(first, second)
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
 		Size = UDim2.fromOffset(44, 24),
-		BackgroundColor3 = self._ui.Theme.Border,
+		BackgroundColor3 = self._ui.Theme.SurfaceHover,
 		BorderSizePixel = 0,
 		ZIndex = 4,
 		Parent = control.Root,
 	})
 	addCorner(switch, 12)
+	local switchStroke = addStroke(switch, self._ui.Theme.Border, 0.35, 1)
+	self._ui:_bindTheme(switchStroke, { Color = "Border" })
 	local knob = create("Frame", {
 		Name = "Knob",
 		AnchorPoint = Vector2.new(0, 0.5),
@@ -3764,17 +3915,6 @@ function Section:AddToggle(first, second)
 		Parent = switch,
 	})
 	addCorner(knob, 9)
-	local check = create("TextLabel", {
-		BackgroundTransparency = 1,
-		Size = UDim2.fromScale(1, 1),
-		Font = Enum.Font.GothamBold,
-		Text = "",
-		TextSize = 11,
-		TextColor3 = self._ui.Theme.AccentText,
-		ZIndex = 6,
-		Parent = knob,
-	})
-	self._ui:_bindTheme(check, { TextColor3 = "AccentText" })
 	local hitbox = create("TextButton", {
 		Name = "Hitbox",
 		Size = UDim2.fromScale(1, 1),
@@ -3786,12 +3926,15 @@ function Section:AddToggle(first, second)
 	})
 	function control:_render(value, _, renderOptions)
 		local duration = renderOptions and renderOptions.Instant and 0 or 0.16
-		self._ui:_tween(switch, duration, { BackgroundColor3 = value and self._ui.Theme.Accent or self._ui.Theme.Border })
+		self._ui:_tween(switch, duration, { BackgroundColor3 = value and self._ui.Theme.Accent or self._ui.Theme.SurfaceHover })
+		self._ui:_tween(switchStroke, duration, {
+			Color = value and self._ui.Theme.Accent or self._ui.Theme.Border,
+			Transparency = value and 0.1 or 0.35,
+		})
 		self._ui:_tween(knob, duration, {
 			Position = value and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
 			BackgroundColor3 = value and self._ui.Theme.AccentText or self._ui.Theme.Muted,
 		})
-		check.Text = value and "+" or ""
 	end
 	control._maid:Give(self._ui.ThemeChanged:Connect(function()
 		if not control._destroyed then
@@ -3833,7 +3976,7 @@ function Section:AddSlider(first, second)
 	if options.Min > options.Max then
 		options.Min, options.Max = options.Max, options.Min
 	end
-	options.Step = tonumber(options.Step or options.Increment) or 1
+	options.Step = math.abs(tonumber(options.Step or options.Increment) or 1)
 	local defaultValue = options.Default
 	if defaultValue == nil then
 		if valueOptions then
@@ -3847,6 +3990,11 @@ function Section:AddSlider(first, second)
 		value = tonumber(value)
 		if not value then
 			error("Slider value must be a number")
+		end
+		if value <= options.Min then
+			return options.Min
+		elseif value >= options.Max then
+			return options.Max
 		end
 		return math.clamp(roundToStep(value, options.Step, options.Min), options.Min, options.Max)
 	end
@@ -3864,7 +4012,7 @@ function Section:AddSlider(first, second)
 		BorderSizePixel = 0,
 		Font = Enum.Font.GothamMedium,
 		Text = "",
-		TextSize = 10,
+		TextSize = 11,
 		TextColor3 = self._ui.Theme.Text,
 		ZIndex = 4,
 		Parent = control.Root,
@@ -3880,16 +4028,30 @@ function Section:AddSlider(first, second)
 		Name = "Track",
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 12, 1, -12),
-		Size = UDim2.new(1, -24, 0, 6),
-		BackgroundColor3 = self._ui.Theme.Border,
+		Size = UDim2.new(1, -24, 0, 8),
+		BackgroundColor3 = self._ui.Theme.SurfaceHover,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
 		Text = "",
 		ZIndex = 5,
 		Parent = control.Root,
 	})
-	addCorner(track, 3)
-	self._ui:_bindTheme(track, { BackgroundColor3 = "Border" })
+	addCorner(track, 4)
+	self._ui:_bindTheme(track, { BackgroundColor3 = "SurfaceHover" })
+	local trackStroke = addStroke(track, self._ui.Theme.Border, 0.4, 1)
+	self._ui:_bindTheme(trackStroke, { Color = "Border" })
+	local sliderHitbox = create("TextButton", {
+		Name = "Hitbox",
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 6, 1, -2),
+		Size = UDim2.new(1, -12, 0, 30),
+		BackgroundTransparency = 1,
+		BorderSizePixel = 0,
+		AutoButtonColor = false,
+		Text = "",
+		ZIndex = 9,
+		Parent = control.Root,
+	})
 	local fill = create("Frame", {
 		Name = "Fill",
 		Size = UDim2.fromScale(0, 1),
@@ -3898,7 +4060,7 @@ function Section:AddSlider(first, second)
 		ZIndex = 6,
 		Parent = track,
 	})
-	addCorner(fill, 3)
+	addCorner(fill, 4)
 	self._ui:_bindTheme(fill, { BackgroundColor3 = "Accent" })
 	local knob = create("Frame", {
 		Name = "Knob",
@@ -3914,6 +4076,7 @@ function Section:AddSlider(first, second)
 	local knobStroke = addStroke(knob, self._ui.Theme.Accent, 0, 2)
 	self._ui:_bindTheme(knob, { BackgroundColor3 = "AccentText" })
 	self._ui:_bindTheme(knobStroke, { Color = "Accent" })
+	local dragging = false
 
 	local function formatValue(value)
 		if type(options.Format) == "function" then
@@ -3930,13 +4093,15 @@ function Section:AddSlider(first, second)
 	function control:_render(value, _, renderOptions)
 		local range = math.max(0.000001, self.Max - self.Min)
 		local ratio = math.clamp((value - self.Min) / range, 0, 1)
+		valueLabel.Text = formatValue(value)
+		if dragging then
+			return
+		end
 		local duration = renderOptions and renderOptions.Instant and 0 or 0.08
 		self._ui:_tween(fill, duration, { Size = UDim2.fromScale(ratio, 1) })
 		self._ui:_tween(knob, duration, { Position = UDim2.fromScale(ratio, 0.5) })
-		valueLabel.Text = formatValue(value)
 	end
 
-	local dragging = false
 	local dragInput
 	local page = self._tab.Page
 	local pageScrollingEnabled
@@ -3960,7 +4125,14 @@ function Section:AddSlider(first, second)
 			pageScrollingEnabled = nil
 		end
 		if knob and knob.Parent then
-			self._ui:_tween(knob, instant and 0 or 0.1, { Size = UDim2.fromOffset(15, 15) })
+			local range = math.max(0.000001, control.Max - control.Min)
+			local ratio = math.clamp((control._value - control.Min) / range, 0, 1)
+			local duration = instant and 0 or 0.12
+			self._ui:_tween(fill, duration, { Size = UDim2.fromScale(ratio, 1) })
+			self._ui:_tween(knob, duration, {
+				Position = UDim2.fromScale(ratio, 0.5),
+				Size = UDim2.fromOffset(15, 15),
+			})
 		end
 	end
 	local function updateFromPosition(position)
@@ -3970,14 +4142,18 @@ function Section:AddSlider(first, second)
 		local ratio = math.clamp((position.X - track.AbsolutePosition.X) / track.AbsoluteSize.X, 0, 1)
 		local value = control.Min + ((control.Max - control.Min) * ratio)
 		control:Set(value, { Source = "user" })
+		self._ui:_tween(fill, 0, { Size = UDim2.fromScale(ratio, 1) })
+		self._ui:_tween(knob, 0, {
+			Position = UDim2.fromScale(ratio, 0.5),
+			Size = UDim2.fromOffset(19, 19),
+		})
 	end
-	control._maid:Give(track.InputBegan:Connect(function(input)
+	control._maid:Give(sliderHitbox.InputBegan:Connect(function(input)
 		if not control.Disabled and not dragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
 			dragging = true
 			dragInput = input
 			lockPageScrolling()
 			updateFromPosition(input.Position)
-			self._ui:_tween(knob, 0.1, { Size = UDim2.fromOffset(19, 19) })
 		end
 	end))
 	control._maid:Give(UserInputService.InputChanged:Connect(function(input)
@@ -4003,10 +4179,18 @@ function Section:AddSlider(first, second)
 		if control.Disabled then
 			return
 		end
+		local keyboardStep = control.Step > 0 and control.Step or math.max((control.Max - control.Min) / 100, 0.000001)
 		if input.KeyCode == Enum.KeyCode.Left or input.KeyCode == Enum.KeyCode.Down then
-			control:Set(control._value - control.Step, { Source = "keyboard" })
+			local target = control._value - keyboardStep
+			if control.Step > 0 and control._value >= control.Max then
+				local lastFullStep = control.Min + math.floor((control.Max - control.Min) / control.Step) * control.Step
+				if lastFullStep < control.Max then
+					target = lastFullStep
+				end
+			end
+			control:Set(target, { Source = "keyboard" })
 		elseif input.KeyCode == Enum.KeyCode.Right or input.KeyCode == Enum.KeyCode.Up then
-			control:Set(control._value + control.Step, { Source = "keyboard" })
+			control:Set(control._value + keyboardStep, { Source = "keyboard" })
 		end
 	end))
 
@@ -6180,7 +6364,7 @@ function Velora:Notify(options)
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
 		Font = Enum.Font.GothamBold,
-		Text = "X",
+		Text = "×",
 		TextSize = 10,
 		TextColor3 = self.Theme.Muted,
 		Visible = options.CanClose ~= false,
@@ -6208,29 +6392,38 @@ function Velora:Notify(options)
 			HorizontalAlignment = Enum.HorizontalAlignment.Right,
 			Parent = actions,
 		})
+		local primaryTextTokens = {
+			Accent = "AccentText",
+			Success = "SuccessText",
+			Warning = "WarningText",
+			Danger = "DangerText",
+		}
 		for index, actionOptions in ipairs(options.Actions) do
 			if index > 3 then
 				break
 			end
 			local actionTitle = tostring(actionOptions.Title or actionOptions.Name or "Action")
+			local primary = actionOptions.Variant == "Primary"
+			local backgroundToken = primary and token or "SurfaceHover"
+			local textToken = primary and (primaryTextTokens[token] or "AccentText") or "Text"
 			local actionButton = create("TextButton", {
 				Size = UDim2.new(1 / actionCount, -((actionCount - 1) * 6 / actionCount), 0, 28),
-				BackgroundColor3 = self.Theme[actionOptions.Variant == "Primary" and token or "SurfaceHover"],
+				BackgroundColor3 = self.Theme[backgroundToken],
 				BorderSizePixel = 0,
 				AutoButtonColor = false,
 				Font = Enum.Font.GothamMedium,
 				Text = actionTitle,
 				TextSize = 9,
 				TextTruncate = Enum.TextTruncate.AtEnd,
-				TextColor3 = self.Theme[actionOptions.Variant == "Primary" and "AccentText" or "Text"],
+				TextColor3 = self.Theme[textToken],
 				LayoutOrder = index,
 				ZIndex = 903,
 				Parent = actions,
 			})
 			addCorner(actionButton, 6)
 			self:_bindTheme(actionButton, {
-				BackgroundColor3 = actionOptions.Variant == "Primary" and token or "SurfaceHover",
-				TextColor3 = actionOptions.Variant == "Primary" and "AccentText" or "Text",
+				BackgroundColor3 = backgroundToken,
+				TextColor3 = textToken,
 			})
 			handle._maid:Give(actionButton.Activated:Connect(function()
 				safeCall(actionOptions.Callback, handle)
@@ -6357,7 +6550,7 @@ function Velora:Dialog(options)
 		Name = "DialogOverlay",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundColor3 = self.Theme.Overlay,
-		BackgroundTransparency = 0.42,
+		BackgroundTransparency = 0.32,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
 		Text = "",
@@ -6373,7 +6566,7 @@ function Velora:Dialog(options)
 	end
 	local dialogWidth = math.min(tonumber(options.Width) or 410, math.max(120, viewportWidth - 24))
 	local measurementWidth = math.max(80, dialogWidth - 40)
-	local contentHeight = math.max(22, TextService:GetTextSize(options.Content, 11, Typography.Regular, Vector2.new(measurementWidth, 1000)).Y)
+	local contentHeight = math.max(22, TextService:GetTextSize(options.Content, 12, Typography.Regular, Vector2.new(measurementWidth, 1000)).Y)
 	local cardHeight = math.clamp(120 + math.min(contentHeight, 240), 176, 360)
 	local card = create("CanvasGroup", {
 		Name = "Dialog",
@@ -6392,17 +6585,27 @@ function Velora:Dialog(options)
 	})
 	maid:Give(card)
 	addCorner(card, 13)
-	local cardStroke = addStroke(card, self.Theme.Border, 0, 1)
+	local cardStroke = addStroke(card, self.Theme.Border, 0.35, 1)
 	self:_bindTheme(card, { BackgroundColor3 = "Surface" })
 	self:_bindTheme(cardStroke, { Color = "Border" })
+	local accentMark = create("Frame", {
+		Position = UDim2.fromOffset(20, 19),
+		Size = UDim2.fromOffset(3, 24),
+		BackgroundColor3 = self.Theme.Accent,
+		BorderSizePixel = 0,
+		ZIndex = 704,
+		Parent = card,
+	})
+	addCorner(accentMark, 2)
+	self:_bindTheme(accentMark, { BackgroundColor3 = "Accent" })
 
 	local titleLabel = create("TextLabel", {
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(20, 18),
-		Size = UDim2.new(1, -40, 0, 28),
+		Position = UDim2.fromOffset(32, 17),
+		Size = UDim2.new(1, -52, 0, 28),
 		Font = Enum.Font.GothamBold,
 		Text = options.Title,
-		TextSize = 16,
+		TextSize = 17,
 		TextColor3 = self.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 704,
@@ -6428,7 +6631,7 @@ function Velora:Dialog(options)
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Font = Enum.Font.Gotham,
 		Text = options.Content,
-		TextSize = 11,
+		TextSize = 12,
 		TextColor3 = self.Theme.Muted,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -6443,6 +6646,17 @@ function Velora:Dialog(options)
 	end
 	maid:Give(contentLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateContentCanvas))
 	task.defer(updateContentCanvas)
+	local actionDivider = create("Frame", {
+		AnchorPoint = Vector2.new(0, 1),
+		Position = UDim2.new(0, 20, 1, -63),
+		Size = UDim2.new(1, -40, 0, 1),
+		BackgroundColor3 = self.Theme.Border,
+		BackgroundTransparency = 0.45,
+		BorderSizePixel = 0,
+		ZIndex = 704,
+		Parent = card,
+	})
+	self:_bindTheme(actionDivider, { BackgroundColor3 = "Border" })
 	local actions = create("Frame", {
 		AnchorPoint = Vector2.new(0, 1),
 		Position = UDim2.new(0, 20, 1, -18),
@@ -6479,26 +6693,57 @@ function Velora:Dialog(options)
 		local buttonTitle = tostring(buttonOptions.Title or buttonOptions.Name or "OK")
 		local variant = buttonOptions.Variant or (index == buttonCount and "Primary" or "Secondary")
 		local backgroundToken = variant == "Danger" and "Danger" or (variant == "Primary" and "Accent" or "SurfaceAlt")
-		local textToken = variant == "Secondary" and "Text" or "AccentText"
+		local textToken = variant == "Secondary" and "Text" or (variant == "Danger" and "DangerText" or "AccentText")
 		local button = create("TextButton", {
-			Size = UDim2.new(1 / buttonCount, -((8 * (buttonCount - 1)) / buttonCount), 0, 34),
+			Size = UDim2.new(1 / buttonCount, -((8 * (buttonCount - 1)) / buttonCount), 0, 36),
 			BackgroundColor3 = self.Theme[backgroundToken],
 			BorderSizePixel = 0,
 			AutoButtonColor = false,
 			Font = Enum.Font.GothamMedium,
 			Text = buttonTitle,
-			TextSize = 10,
+			TextSize = 12,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextColor3 = self.Theme[textToken],
 			LayoutOrder = index,
 			ZIndex = 705,
 			Parent = actions,
 		})
-		addCorner(button, 8)
+		addCorner(button, 9)
 		self:_bindTheme(button, {
 			BackgroundColor3 = backgroundToken,
 			TextColor3 = textToken,
 		})
+		local buttonHovered = false
+		local function renderButton(state, duration)
+			local baseColor = self.Theme[backgroundToken]
+			local foreground = self.Theme[textToken]
+			local targetColor = baseColor
+			if state == "pressed" then
+				targetColor = interactiveColor(baseColor, foreground, 0.13)
+			elseif state == "hover" then
+				targetColor = variant == "Secondary"
+					and self.Theme.SurfaceHover
+					or interactiveColor(baseColor, foreground, 0.08)
+			end
+			self:_tween(button, duration, { BackgroundColor3 = targetColor })
+		end
+		maid:Give(button.MouseEnter:Connect(function()
+			buttonHovered = true
+			renderButton("hover", 0.12)
+		end))
+		maid:Give(button.MouseLeave:Connect(function()
+			buttonHovered = false
+			renderButton("rest", 0.12)
+		end))
+		maid:Give(button.MouseButton1Down:Connect(function()
+			renderButton("pressed", 0.08)
+		end))
+		maid:Give(button.MouseButton1Up:Connect(function()
+			renderButton(buttonHovered and "hover" or "rest", 0.1)
+		end))
+		maid:Give(self.ThemeChanged:Connect(function()
+			renderButton(buttonHovered and "hover" or "rest", 0.18)
+		end))
 		maid:Give(button.Activated:Connect(function()
 			local result = buttonOptions.Value
 			if result == nil then
@@ -6522,6 +6767,10 @@ function Velora:Dialog(options)
 		end
 	end))
 	maid:Give(function()
+		if not handle._closed then
+			handle._closed = true
+			closed:Fire(nil)
+		end
 		if self._dialogMaid == maid then
 			self._dialogMaid = nil
 		end

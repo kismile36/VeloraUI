@@ -6,7 +6,7 @@ Velora UI 是一个从零实现的 Roblox 单文件 UI 库。它参考了 WindUI
 
 ## 功能
 
-- 响应式窗口：无底部投影的干净描边、拖动边界、调整大小、最小化、关闭策略、桌面双栏、移动端单栏、控件上下重排与顶部悬浮恢复胶囊。
+- 响应式窗口：无底部投影的干净描边、无边界自由拖动、调整大小、最小化、关闭确认、桌面双栏、移动端单栏、控件上下重排与顶部悬浮恢复胶囊。
 - 完整控件：Button、Toggle/Checkbox、Slider、Input/Textbox、Dropdown、MultiDropdown、Keybind、ColorPicker、Segmented/Radio、Progress、Label、Paragraph、Divider、Spacer、Code、Image。
 - 统一句柄：值控件均支持 `Get`、`Set`、`Reset`、`OnChanged`、`SetDisabled`、`SetVisible`、`Highlight` 和 `Destroy`。
 - 中心状态：每个值控件使用唯一 `Flag`，支持 `GetFlag`、`SetFlag`、`Observe` 和全量 `GetFlags`。
@@ -58,6 +58,8 @@ local UI = Velora.new({
 
 `IgnoreGuiInset` 默认是 `false`，用于控制主窗口和通知是否避开 Roblox 顶栏。顶部悬浮按钮始终使用 WindUI 同款全屏坐标层，初始显示在顶栏下方，并可自由拖到物理屏幕顶部。
 
+主窗口不设置拖动安全区，可以按需要拖到屏幕外；需要恢复时可调用 `Window:SetToCenter()`。右上角 `-` 只负责最小化并显示顶部恢复胶囊；右上角 `×` 会先显示“是否关闭窗口”，确认“是”后销毁窗口，不会生成恢复胶囊。默认界面快捷键为 `G`。
+
 ## 顶部悬浮按钮
 
 主界面隐藏后会显示一个 WindUI 风格的顶部胶囊：44px 触摸高度、青紫渐变描边、图标与标题、独立拖动把手。拖动采用与 WindUI 相同的全屏坐标增量，不限制顶部位置；点击胶囊会恢复目标窗口。
@@ -92,6 +94,11 @@ local Window = UI:CreateWindow({
     Size = UDim2.fromOffset(900, 590),
     Resizable = true,
     Search = true,
+    CloseBehavior = "Destroy",
+    ConfirmOnClose = true,
+    CloseConfirmTitle = "是否关闭窗口",
+    CloseConfirmCancel = "否",
+    CloseConfirmConfirm = "是",
 })
 
 local Tab = Window:AddTab({ Title = "General", Icon = "G" })
@@ -112,11 +119,13 @@ Section:AddSlider({
     Flag = "player.speed",
     Min = 0,
     Max = 100,
-    Step = 1,
-    Default = 16,
+    Step = 2.5,
+    Default = 17.5,
     Suffix = " studs",
 })
 ```
+
+Slider 拖动时会连续跟随指针，逻辑值仍按 `Step` 更新，松手后再吸附到最近步进；`2.5`、`0.25`、`0.125` 等小数步进均会保留正确精度。
 
 如果喜欢 Rayfield 风格，可以跳过 Section，直接调用：
 

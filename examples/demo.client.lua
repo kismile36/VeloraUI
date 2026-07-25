@@ -40,6 +40,12 @@ local Window = UI:CreateWindow({
 	Resizable = true,
 	Search = true,
 	ShowUser = true,
+	CloseBehavior = "Destroy",
+	ConfirmOnClose = true,
+	CloseConfirmTitle = "是否关闭窗口",
+	CloseConfirmContent = "关闭后将销毁中文演示窗口，且不会显示顶部恢复悬浮窗。",
+	CloseConfirmCancel = "否",
+	CloseConfirmConfirm = "是",
 })
 
 local function notify(title, content, notificationType, extra)
@@ -81,7 +87,7 @@ local WelcomeSection = OverviewTab:AddSection({
 
 WelcomeSection:AddParagraph({
 	Title = "为实际项目准备",
-	Content = "Velora 提供响应式布局、统一状态、顶部弹层、实时主题、配置管理与完整清理。按右上角减号可最小化到顶部悬浮胶囊。",
+	Content = "Velora 提供响应式布局、统一状态、顶部弹层、实时主题、配置管理与完整清理。主窗口可自由拖到屏幕外；右上角减号用于最小化，关闭按钮会先请求确认。",
 })
 
 WelcomeSection:AddButton({
@@ -389,11 +395,11 @@ local CheckOption = BasicSection:AddToggle({
 
 local Volume = BasicSection:AddSlider({
 	Title = "界面音量",
-	Description = "支持鼠标、触摸与键盘方向键",
+	Description = "2.5 步进；拖动连续跟手，松手后精确吸附",
 	Flag = "demo.volume",
 	Min = 0,
 	Max = 100,
-	Step = 5,
+	Step = 2.5,
 	Default = 65,
 	Suffix = "%",
 })
