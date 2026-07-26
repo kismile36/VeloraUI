@@ -2053,6 +2053,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.fromOffset(900, 590),
 		MinSize = Vector2.new(560, 390),
 		MaxSize = Vector2.new(1280, 860),
+		CompactBreakpoint = 760,
 		Resizable = true,
 		Search = true,
 		ShowUser = true,
@@ -2093,6 +2094,7 @@ function Velora:CreateWindow(options)
 	window._minimizedToOpenButton = false
 	window._closeDialog = nil
 	window._mobile = false
+	window._deviceMobile = false
 	window._requestedSize = Vector2.new(options.Size.X.Offset, options.Size.Y.Offset)
 	window._lastExpandedSize = options.Size
 	window._id = self:_nextId()
@@ -2636,31 +2638,34 @@ function Velora:CreateWindow(options)
 		if viewport.X <= 0 or viewport.Y <= 0 then
 			return
 		end
-		local mobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
-		window._mobile = mobile
-		local sidebarWidth = mobile and 70 or 220
+		local deviceMobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
+		local availableWindowWidth = math.min(window._requestedSize.X, math.max(1, viewport.X - 20))
+		local compact = self.Options.Mobile and (deviceMobile or availableWindowWidth < options.CompactBreakpoint)
+		window._deviceMobile = deviceMobile
+		window._mobile = compact
+		local sidebarWidth = compact and 70 or 220
 		brand.Size = UDim2.fromOffset(sidebarWidth - 16, 42)
-		brandTitle.Visible = not mobile
-		brandSubtitle.Visible = not mobile
+		brandTitle.Visible = not compact
+		brandSubtitle.Visible = not compact
 		divider.Position = UDim2.fromOffset(sidebarWidth - 1, 12)
 		pageTitle.Position = UDim2.fromOffset(sidebarWidth + 18, 0)
 		pageTitle.Size = UDim2.new(1, -(sidebarWidth + 170), 1, 0)
 		sidebar.Size = UDim2.new(0, sidebarWidth, 1, -58)
 		content.Position = UDim2.fromOffset(sidebarWidth, 58)
 		content.Size = UDim2.new(1, -sidebarWidth, 1, -58)
-		tabsLabel.Visible = not mobile
-		tabsList.Position = UDim2.fromOffset(8, mobile and 12 or 40)
-		tabsList.Size = UDim2.new(1, -16, 1, mobile and -24 or (options.ShowUser and -122 or -52))
+		tabsLabel.Visible = not compact
+		tabsList.Position = UDim2.fromOffset(8, compact and 12 or 40)
+		tabsList.Size = UDim2.new(1, -16, 1, compact and -24 or (options.ShowUser and -122 or -52))
 		if userCard then
-			userCard.Visible = not mobile
+			userCard.Visible = not compact
 		end
-		resizeGrip.Visible = options.Resizable and not mobile and not window._minimized
+		resizeGrip.Visible = options.Resizable and not deviceMobile and not window._minimized
 		for _, tab in ipairs(window._tabs) do
-			tab:_setMobile(mobile)
+			tab:_setMobile(compact)
 		end
 		if not window._minimized then
 			local targetSize
-			if mobile then
+			if deviceMobile then
 				targetSize = Vector2.new(math.max(1, viewport.X - 12), math.max(1, viewport.Y - 20))
 			else
 				targetSize = Vector2.new(
@@ -2695,6 +2700,7 @@ function Velora:CreateWindow(options)
 	end))
 	window._maid:Give(self.WindowLayer:GetPropertyChangedSignal("AbsolutePosition"):Connect(updateResponsive))
 	window._maid:Give(self.WindowLayer:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateResponsive))
+	window._maid:Give(root:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateResponsive))
 	bindCamera()
 	task.defer(updateResponsive)
 
@@ -2886,7 +2892,7 @@ function Window:Restore()
 	self.Content.Visible = true
 	self.TopDivider.Visible = true
 	self.PageTitle.Visible = true
-	self.ResizeGrip.Visible = self.Options.Resizable and not self._mobile
+	self.ResizeGrip.Visible = self.Options.Resizable and not self._deviceMobile
 	if minimizedToOpenButton then
 		self.Root.Size = expandedSize
 	else
