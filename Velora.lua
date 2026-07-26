@@ -571,20 +571,20 @@ local Themes = {
 		Overlay = Color3.fromRGB(8, 11, 16),
 	},
 	Sakura = {
-		Background = Color3.fromRGB(250, 244, 247),
-		Surface = Color3.fromRGB(255, 251, 253),
-		SurfaceAlt = Color3.fromRGB(247, 233, 240),
-		SurfaceHover = Color3.fromRGB(240, 220, 230),
-		Border = Color3.fromRGB(222, 194, 207),
-		Text = Color3.fromRGB(54, 37, 48),
-		Muted = Color3.fromRGB(125, 91, 109),
-		Accent = Color3.fromRGB(196, 72, 125),
-		AccentDark = Color3.fromRGB(158, 51, 99),
+		Background = Color3.fromRGB(248, 247, 249),
+		Surface = Color3.fromRGB(255, 253, 254),
+		SurfaceAlt = Color3.fromRGB(246, 242, 245),
+		SurfaceHover = Color3.fromRGB(239, 233, 237),
+		Border = Color3.fromRGB(226, 217, 222),
+		Text = Color3.fromRGB(51, 46, 50),
+		Muted = Color3.fromRGB(123, 111, 118),
+		Accent = Color3.fromRGB(218, 91, 139),
+		AccentDark = Color3.fromRGB(180, 62, 111),
 		AccentText = Color3.fromRGB(255, 255, 255),
-		Success = Color3.fromRGB(49, 156, 105),
-		Warning = Color3.fromRGB(196, 126, 33),
-		Danger = Color3.fromRGB(204, 64, 89),
-		Overlay = Color3.fromRGB(42, 24, 34),
+		Success = Color3.fromRGB(60, 157, 111),
+		Warning = Color3.fromRGB(202, 132, 43),
+		Danger = Color3.fromRGB(211, 70, 96),
+		Overlay = Color3.fromRGB(35, 29, 32),
 	},
 	Latte = {
 		Background = Color3.fromRGB(244, 239, 231),
@@ -1464,6 +1464,29 @@ function Velora:IsVisible()
 end
 
 function Velora:Toggle()
+	local minimizedTarget = self.OpenButton and self.OpenButton.Target
+	if not minimizedTarget
+		or minimizedTarget._destroyed
+		or not minimizedTarget.Root
+		or not minimizedTarget._minimized
+	then
+		minimizedTarget = nil
+		for _, window in ipairs(self._windows) do
+			if not window._destroyed
+				and window.Root
+				and window._minimized
+				and (window._minimizedToOpenButton or window._minimizingToOpenButton)
+			then
+				minimizedTarget = window
+				break
+			end
+		end
+	end
+	if minimizedTarget then
+		self:SetVisible(true)
+		minimizedTarget:Restore()
+		return self
+	end
 	return self:SetVisible(not self:IsVisible())
 end
 
@@ -3506,6 +3529,7 @@ function Tab:AddSection(options, side)
 	section._controls = {}
 	section._destroyed = false
 	section._collapsed = false
+	section._collapseRevision = 0
 	section._id = self._ui:_nextId()
 	local requestedSide = options.Side
 	if requestedSide ~= "Left" and requestedSide ~= "Right" then
@@ -3606,12 +3630,14 @@ function Tab:AddSection(options, side)
 		Parent = header,
 	})
 	self._ui:_bindTheme(divider, { BackgroundColor3 = "Border" })
+	section.Divider = divider
 
 	local holder = create("Frame", {
 		Name = "Controls",
 		Size = UDim2.new(1, 0, 0, 0),
 		AutomaticSize = Enum.AutomaticSize.Y,
 		BackgroundTransparency = 1,
+		ClipsDescendants = true,
 		LayoutOrder = 2,
 		Parent = card,
 	})
@@ -3675,10 +3701,49 @@ function Section:SetCollapsed(collapsed)
 	if not self.Options.Collapsible then
 		return self
 	end
-	self._collapsed = collapsed == true
-	self.Holder.Visible = not self._collapsed
-	self.CollapseIcon.Text = self._collapsed and "v" or "^"
-	task.defer(self._tab._updateCanvas)
+	collapsed = collapsed == true
+	if self._collapsed == collapsed then
+		return self
+	end
+	self._collapsed = collapsed
+	self._collapseRevision = self._collapseRevision + 1
+	local revision = self._collapseRevision
+	local scale = math.max(self._window.UIScale and self._window.UIScale.Scale or 1, 0.01)
+	local currentHeight = self.Holder.AbsoluteSize.Y / scale
+	local expandedHeight = self.Layout.AbsoluteContentSize.Y / scale + 22
+	self.Holder.AutomaticSize = Enum.AutomaticSize.None
+	self.Holder.Visible = true
+	self.Holder.Size = UDim2.new(1, 0, 0, math.max(0, currentHeight))
+	self.CollapseIcon.Text = "^"
+	self._ui:_tween(self.CollapseIcon, 0.2, { Rotation = collapsed and 180 or 0 })
+	self._ui:_tween(self.Divider, 0.16, { BackgroundTransparency = collapsed and 0.65 or 0.35 })
+	local function finishAnimation()
+		if self._destroyed or self._collapseRevision ~= revision or self._collapsed ~= collapsed then
+			return
+		end
+		if collapsed then
+			self.Holder.Visible = false
+			self.Holder.Size = UDim2.new(1, 0, 0, 0)
+		else
+			self.Holder.Size = UDim2.new(1, 0, 0, 0)
+			self.Holder.AutomaticSize = Enum.AutomaticSize.Y
+		end
+		task.defer(self._tab._updateCanvas)
+	end
+	local tween = self._ui:_tween(self.Holder, 0.22, {
+		Size = UDim2.new(1, 0, 0, collapsed and 0 or expandedHeight),
+	})
+	if tween then
+		local connection
+		connection = tween.Completed:Connect(function()
+			if connection then
+				connection:Disconnect()
+			end
+			finishAnimation()
+		end)
+	else
+		finishAnimation()
+	end
 	return self
 end
 
