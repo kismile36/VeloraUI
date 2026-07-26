@@ -3852,38 +3852,17 @@ function Section:AddButton(first, second)
 		self._ui.State:Unregister(registeredFlag, control)
 		self._ui.State._values[registeredFlag] = nil
 	end
-	local actionText = tostring(options.ActionText or options.ButtonText or "Run")
-	local actionWidth = math.clamp(textWidth(actionText, 11, Enum.Font.GothamMedium) + 25, 62, 120)
-	local actionVariant = options.Variant or (options.Danger and "Danger" or "Secondary")
-	local actionBackground = actionVariant == "Primary" and "Accent" or (actionVariant == "Danger" and "Danger" or "SurfaceHover")
-	local actionForeground = actionVariant == "Secondary" and "Text" or (actionVariant == "Danger" and "DangerText" or "AccentText")
-	local action = create("TextLabel", {
-		Name = "Action",
-		AnchorPoint = Vector2.new(1, 0.5),
-		Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.fromOffset(actionWidth, 30),
-		BackgroundColor3 = self._ui.Theme.SurfaceHover,
-		BorderSizePixel = 0,
-		Font = Enum.Font.GothamMedium,
-		Text = actionText .. " >",
-		TextSize = 11,
-		TextColor3 = self._ui.Theme.Text,
-		ZIndex = 4,
-		Parent = control.Root,
-	})
-	function control:_setMobile(mobile)
-		applyStackedControlLayout(self, mobile, action, actionWidth, 30)
+	control.Root.Selectable = false
+	control.TitleLabel.Size = UDim2.new(1, -24, 0, control.Description ~= "" and 21 or control._desktopHeight)
+	if control.DescriptionLabel then
+		control.DescriptionLabel.Size = UDim2.new(1, -24, 0, 20)
 	end
-	addCorner(action, 7)
-	self._ui:_bindTheme(action, {
-		BackgroundColor3 = actionBackground,
-		TextColor3 = actionForeground,
-	})
 	local hitbox = create("TextButton", {
 		Name = "Hitbox",
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
+		Selectable = false,
 		Text = "",
 		ZIndex = 10,
 		Parent = control.Root,
@@ -3915,18 +3894,10 @@ function Section:AddButton(first, second)
 		control:Press()
 	end))
 	control._maid:Give(hitbox.MouseButton1Down:Connect(function()
-		if control._mobile then
-			self._ui:_tween(action, 0.08, { BackgroundTransparency = 0.14 })
-		else
-			self._ui:_tween(action, 0.08, { Size = UDim2.fromOffset(math.max(58, action.AbsoluteSize.X - 3), 27) })
-		end
+		self._ui:_tween(control.Root, 0.08, { BackgroundTransparency = 0 })
 	end))
 	control._maid:Give(hitbox.MouseButton1Up:Connect(function()
-		if control._mobile then
-			self._ui:_tween(action, 0.1, { BackgroundTransparency = 0 })
-		else
-			self._ui:_tween(action, 0.1, { Size = UDim2.fromOffset(actionWidth, 30) })
-		end
+		self._ui:_tween(control.Root, 0.1, { BackgroundTransparency = 0.12 })
 	end))
 	return self:_finishControl(control, false)
 end
@@ -3976,10 +3947,12 @@ function Section:AddToggle(first, second)
 		Size = UDim2.fromScale(1, 1),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
+		Selectable = false,
 		Text = "",
 		ZIndex = 10,
 		Parent = control.Root,
 	})
+	control.Root.Selectable = false
 	function control:_render(value, _, renderOptions)
 		local duration = renderOptions and renderOptions.Instant and 0 or 0.16
 		self._ui:_tween(switch, duration, { BackgroundColor3 = value and self._ui.Theme.Accent or self._ui.Theme.SurfaceHover })
@@ -4000,11 +3973,6 @@ function Section:AddToggle(first, second)
 	control._maid:Give(hitbox.Activated:Connect(function()
 		if not control.Disabled then
 			control:Set(not control._value, { Source = "user" })
-		end
-	end))
-	control._maid:Give(control.Root.InputBegan:Connect(function(input)
-		if not control.Disabled and (input.KeyCode == Enum.KeyCode.Space or input.KeyCode == Enum.KeyCode.Return) then
-			control:Set(not control._value, { Source = "keyboard" })
 		end
 	end))
 	return self:_finishControl(control, options.FireOnInit)
