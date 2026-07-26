@@ -4850,13 +4850,14 @@ function Section:AddDropdown(first, second)
 			Parent = list,
 		})
 		self._ui:_bindTheme(list, { ScrollBarImageColor3 = "Border" })
+		local windowScale = self._section._window.UIScale
 		local function updateOptionsCanvas()
-			local scale = math.max(self._window.UIScale and self._window.UIScale.Scale or 1, 0.01)
+			local scale = math.max(windowScale and windowScale.Scale or 1, 0.01)
 			list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y / scale + 4)
 		end
 		popupMaid:Give(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateOptionsCanvas))
-		if self._window.UIScale then
-			popupMaid:Give(self._window.UIScale:GetPropertyChangedSignal("Scale"):Connect(updateOptionsCanvas))
+		if windowScale then
+			popupMaid:Give(windowScale:GetPropertyChangedSignal("Scale"):Connect(updateOptionsCanvas))
 		end
 
 		local optionButtons = {}
