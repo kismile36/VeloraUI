@@ -486,6 +486,7 @@ local Window = VeloraUI:CreateWindow({
     Icon = "",
     Size = UDim2.fromOffset(880, 590),
     MinSize = Vector2.new(620, 420),
+    SidebarWidth = 170,
     Resizable = true,
     Search = true,
     ShowUser = false,
