@@ -1487,6 +1487,26 @@ function Velora:Toggle()
 		minimizedTarget:Restore()
 		return self
 	end
+	if self:IsVisible() then
+		local visibleTarget = self.OpenButton and self.OpenButton.Target
+		if not visibleTarget
+			or visibleTarget._destroyed
+			or not visibleTarget.Root
+			or not visibleTarget.Root.Visible
+		then
+			visibleTarget = nil
+			for _, window in ipairs(self._windows) do
+				if not window._destroyed and window.Root and window.Root.Visible then
+					visibleTarget = window
+					break
+				end
+			end
+		end
+		if visibleTarget then
+			visibleTarget:Minimize()
+			return self
+		end
+	end
 	return self:SetVisible(not self:IsVisible())
 end
 
@@ -3630,7 +3650,7 @@ function Tab:AddSection(options, side)
 		Parent = header,
 	})
 	self._ui:_bindTheme(divider, { BackgroundColor3 = "Border" })
-	section.Divider = divider
+	section.HeaderDivider = divider
 
 	local holder = create("Frame", {
 		Name = "Controls",
@@ -3716,7 +3736,7 @@ function Section:SetCollapsed(collapsed)
 	self.Holder.Size = UDim2.new(1, 0, 0, math.max(0, currentHeight))
 	self.CollapseIcon.Text = "^"
 	self._ui:_tween(self.CollapseIcon, 0.2, { Rotation = collapsed and 180 or 0 })
-	self._ui:_tween(self.Divider, 0.16, { BackgroundTransparency = collapsed and 0.65 or 0.35 })
+	self._ui:_tween(self.HeaderDivider, 0.16, { BackgroundTransparency = collapsed and 0.65 or 0.35 })
 	local function finishAnimation()
 		if self._destroyed or self._collapseRevision ~= revision or self._collapsed ~= collapsed then
 			return
