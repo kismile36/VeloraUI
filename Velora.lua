@@ -3727,7 +3727,7 @@ local function applyStackedControlLayout(control, mobile, target, desktopWidth, 
 	local hasDescription = control.Description ~= ""
 	if mobile then
 		local targetY = hasDescription and 53 or 36
-		control.Root.Size = UDim2.new(1, 0, 0, targetY + 44)
+		control.Root.Size = UDim2.new(1, 0, 0, targetY + desktopHeight + 12)
 		control.TitleLabel.Position = UDim2.fromOffset(12, 6)
 		control.TitleLabel.Size = UDim2.new(1, -24, 0, 22)
 		if control.DescriptionLabel then
@@ -3736,7 +3736,7 @@ local function applyStackedControlLayout(control, mobile, target, desktopWidth, 
 		end
 		target.AnchorPoint = Vector2.new(0, 0)
 		target.Position = UDim2.fromOffset(12, targetY)
-		target.Size = UDim2.new(1, -24, 0, 32)
+		target.Size = UDim2.new(1, -24, 0, desktopHeight)
 	else
 		local titleY = hasDescription and 10 or 0
 		local titleHeight = hasDescription and 21 or control._desktopHeight
@@ -4035,31 +4035,31 @@ function Section:AddToggle(first, second)
 	defaultValue = defaultValue == true
 	local control = self:_makeControl("Toggle", options, defaultValue, function(value)
 		return value == true
-	end)
+	end, options.Description and 54 or 44)
 	local switch = create("Frame", {
 		Name = "Switch",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.fromOffset(44, 24),
+		Size = UDim2.fromOffset(38, 20),
 		BackgroundColor3 = self._ui.Theme.SurfaceHover,
 		BorderSizePixel = 0,
 		ZIndex = 4,
 		Parent = control.Root,
 	})
-	addCorner(switch, 12)
+	addCorner(switch, 10)
 	local switchStroke = addStroke(switch, self._ui.Theme.Border, 0.35, 1)
 	self._ui:_bindTheme(switchStroke, { Color = "Border" })
 	local knob = create("Frame", {
 		Name = "Knob",
 		AnchorPoint = Vector2.new(0, 0.5),
 		Position = UDim2.new(0, 3, 0.5, 0),
-		Size = UDim2.fromOffset(18, 18),
+		Size = UDim2.fromOffset(14, 14),
 		BackgroundColor3 = self._ui.Theme.Muted,
 		BorderSizePixel = 0,
 		ZIndex = 5,
 		Parent = switch,
 	})
-	addCorner(knob, 9)
+	addCorner(knob, 7)
 	local hitbox = create("TextButton", {
 		Name = "Hitbox",
 		Size = UDim2.fromScale(1, 1),
@@ -4079,7 +4079,7 @@ function Section:AddToggle(first, second)
 			Transparency = value and 0.1 or 0.35,
 		})
 		self._ui:_tween(knob, duration, {
-			Position = value and UDim2.new(1, -21, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
+			Position = value and UDim2.new(1, -17, 0.5, 0) or UDim2.new(0, 3, 0.5, 0),
 			BackgroundColor3 = value and self._ui.Theme.AccentText or self._ui.Theme.Muted,
 		})
 	end
@@ -4623,14 +4623,14 @@ function Section:AddDropdown(first, second)
 		return choice.Value
 	end
 
-	local control = self:_makeControl("Dropdown", options, sanitize(defaultValue), sanitize, options.Description and 66 or 58)
+	local control = self:_makeControl("Dropdown", options, sanitize(defaultValue), sanitize, options.Description and 56 or 48)
 	control.Values = choices
 	control.Multi = multi
 	local selector = create("TextButton", {
 		Name = "Selector",
 		AnchorPoint = Vector2.new(1, 0.5),
 		Position = UDim2.new(1, -12, 0.5, 0),
-		Size = UDim2.fromOffset(options.Width or 168, 32),
+		Size = UDim2.fromOffset(options.Width or 150, 28),
 		BackgroundColor3 = self._ui.Theme.Surface,
 		BorderSizePixel = 0,
 		AutoButtonColor = false,
@@ -4672,9 +4672,9 @@ function Section:AddDropdown(first, second)
 	self._ui:_bindTheme(selectedText, { TextColor3 = "Text" })
 	self._ui:_bindTheme(arrow, { TextColor3 = "Muted" })
 	control.Selector = selector
-	local selectorWidth = options.Width or 168
+	local selectorWidth = options.Width or 150
 	function control:_setMobile(mobile)
-		applyStackedControlLayout(self, mobile, selector, selectorWidth)
+		applyStackedControlLayout(self, mobile, selector, selectorWidth, 28)
 	end
 
 	local function displayValue(value)
