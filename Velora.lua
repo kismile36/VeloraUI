@@ -17,6 +17,18 @@ local Typography = {
 	Mono = Enum.Font.RobotoMono,
 }
 
+local WindUIFontFamily = "rbxassetid://12187365364"
+
+local FontSizes = {
+	Tiny = 12,
+	Caption = 13,
+	Small = 14,
+	Body = 15,
+	Label = 17,
+	Title = 18,
+	Header = 20,
+}
+
 local FontAliases = {
 	[Enum.Font.Gotham] = Typography.Regular,
 	[Enum.Font.GothamMedium] = Typography.Medium,
@@ -26,6 +38,20 @@ local FontAliases = {
 
 local function resolveFont(font)
 	return FontAliases[font] or font
+end
+
+local function resolveFontFace(font)
+	local resolved = resolveFont(font)
+	if resolved == Typography.Mono then
+		return nil
+	end
+	local weight = Enum.FontWeight.Regular
+	if resolved == Typography.Bold then
+		weight = Enum.FontWeight.SemiBold
+	elseif resolved == Typography.Medium then
+		weight = Enum.FontWeight.Medium
+	end
+	return Font.new(WindUIFontFamily, weight, Enum.FontStyle.Normal)
 end
 
 local function truncateUtf8(text, maximumLength)
@@ -43,6 +69,8 @@ local function truncateUtf8(text, maximumLength)
 end
 
 Velora.Fonts = Typography
+Velora.FontSizes = FontSizes
+Velora.FontFamily = WindUIFontFamily
 
 local Maid = {}
 Maid.__index = Maid
@@ -277,7 +305,16 @@ local function create(className, properties, children)
 	if properties then
 		for property, value in pairs(properties) do
 			if property ~= "Parent" then
-				object[property] = property == "Font" and resolveFont(value) or value
+				if property == "Font" then
+					local fontFace = resolveFontFace(value)
+					if fontFace and (object:IsA("TextLabel") or object:IsA("TextButton") or object:IsA("TextBox")) then
+						object.FontFace = fontFace
+					else
+						object.Font = resolveFont(value)
+					end
+				else
+					object[property] = value
+				end
 			end
 		end
 	end
@@ -1157,7 +1194,7 @@ function Velora.new(options)
 	options = deepMerge({
 		Name = "VeloraUI",
 		Parent = "Auto",
-		Theme = "Midnight",
+		Theme = "Sakura",
 		Accent = nil,
 		DisplayOrder = 1000,
 		IgnoreGuiInset = false,
@@ -1967,7 +2004,7 @@ createOpenButton = function(ui, options)
 		BackgroundTransparency = 1,
 		Font = Typography.Medium,
 		Text = "",
-		TextSize = 13,
+		TextSize = FontSizes.Body,
 		TextColor3 = ui.Theme.Text,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -2185,7 +2222,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.new(1, 0, 0, 22),
 		Font = Enum.Font.GothamBold,
 		Text = tostring(options.Title),
-		TextSize = 15,
+		TextSize = FontSizes.Header,
 		TextColor3 = self.Theme.Text,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -2199,7 +2236,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.new(1, 0, 0, 17),
 		Font = Enum.Font.Gotham,
 		Text = tostring(options.Subtitle),
-		TextSize = 11,
+		TextSize = FontSizes.Body,
 		TextColor3 = self.Theme.Muted,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -2254,7 +2291,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.new(1, -410, 1, 0),
 		Font = Enum.Font.GothamMedium,
 		Text = "Overview",
-		TextSize = 14,
+		TextSize = FontSizes.Title,
 		TextColor3 = self.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 6,
@@ -2369,7 +2406,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.new(1, -32, 0, 18),
 		Font = Enum.Font.GothamBold,
 		Text = "NAVIGATION",
-		TextSize = 10,
+		TextSize = FontSizes.Caption,
 		TextColor3 = self.Theme.Muted,
 		TextTransparency = 0.2,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -2431,7 +2468,7 @@ function Velora:CreateWindow(options)
 			Size = UDim2.new(1, -66, 0, 22),
 			Font = Enum.Font.GothamMedium,
 			Text = player and player.DisplayName or "Player",
-			TextSize = 12,
+			TextSize = FontSizes.Label,
 			TextColor3 = self.Theme.Text,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -2443,7 +2480,7 @@ function Velora:CreateWindow(options)
 			Size = UDim2.new(1, -66, 0, 18),
 			Font = Enum.Font.Gotham,
 			Text = player and ("@" .. player.Name) or "Ready",
-			TextSize = 10,
+			TextSize = FontSizes.Caption,
 			TextColor3 = self.Theme.Muted,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -2490,7 +2527,7 @@ function Velora:CreateWindow(options)
 		Size = UDim2.new(1, 0, 0, 44),
 		Font = Enum.Font.Gotham,
 		Text = "Add a tab and some controls to begin.",
-		TextSize = 12,
+		TextSize = FontSizes.Body,
 		TextColor3 = self.Theme.Muted,
 		TextWrapped = true,
 		Parent = emptyState,
@@ -3093,7 +3130,7 @@ function Window:AddTab(options, icon)
 		Size = UDim2.new(1, -54, 1, 0),
 		Font = Enum.Font.GothamMedium,
 		Text = tab.Title,
-		TextSize = 12,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Muted,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -3409,7 +3446,7 @@ function Tab:AddSection(options, side)
 		Size = UDim2.new(1, -50, 0, section.Description ~= "" and 20 or 52),
 		Font = Enum.Font.GothamMedium,
 		Text = section.Title,
-		TextSize = 13,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = header,
@@ -3425,7 +3462,7 @@ function Tab:AddSection(options, side)
 			Size = UDim2.new(1, -50, 0, 18),
 			Font = Enum.Font.Gotham,
 			Text = section.Description,
-			TextSize = 10,
+			TextSize = FontSizes.Body,
 			TextColor3 = self._ui.Theme.Muted,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextXAlignment = Enum.TextXAlignment.Left,
@@ -3442,7 +3479,7 @@ function Tab:AddSection(options, side)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBold,
 		Text = options.Collapsible and "^" or "",
-		TextSize = 14,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Muted,
 		Parent = header,
 	})
@@ -3730,7 +3767,7 @@ function Section:_makeControl(kind, options, defaultValue, sanitize, height)
 		Size = UDim2.new(1, -128, 0, titleHeight),
 		Font = Enum.Font.GothamMedium,
 		Text = control.Title,
-		TextSize = 12,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Text,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -3747,7 +3784,7 @@ function Section:_makeControl(kind, options, defaultValue, sanitize, height)
 		Size = UDim2.new(1, -128, 0, 20),
 		Font = Enum.Font.Gotham,
 		Text = control.Description,
-		TextSize = 10,
+		TextSize = FontSizes.Body,
 		TextColor3 = self._ui.Theme.Muted,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -3767,7 +3804,7 @@ function Section:_makeControl(kind, options, defaultValue, sanitize, height)
 		AutoButtonColor = false,
 		Text = options.DisabledReason or "Locked",
 		Font = Enum.Font.GothamMedium,
-		TextSize = 11,
+		TextSize = FontSizes.Body,
 		TextColor3 = self._ui.Theme.Muted,
 		Visible = control.Disabled,
 		ZIndex = 50,
@@ -4073,7 +4110,7 @@ function Section:AddSlider(first, second)
 		BorderSizePixel = 0,
 		Font = Enum.Font.GothamMedium,
 		Text = "",
-		TextSize = 11,
+		TextSize = FontSizes.Body,
 		TextColor3 = self._ui.Theme.Text,
 		ZIndex = 4,
 		Parent = control.Root,
@@ -4344,7 +4381,7 @@ function Section:AddInput(first, second)
 			PlaceholderText = tostring(options.Placeholder or options.PlaceholderText or "Type here..."),
 			PlaceholderColor3 = self._ui.Theme.Muted,
 			TextColor3 = self._ui.Theme.Text,
-			TextSize = 11,
+			TextSize = FontSizes.Body,
 			ZIndex = 4,
 			Parent = control.Root,
 		})
@@ -4365,7 +4402,7 @@ function Section:AddInput(first, second)
 			PlaceholderText = tostring(options.Placeholder or options.PlaceholderText or "Type here..."),
 			PlaceholderColor3 = self._ui.Theme.Muted,
 			TextColor3 = self._ui.Theme.Text,
-			TextSize = 11,
+			TextSize = FontSizes.Body,
 			ZIndex = 4,
 			Parent = control.Root,
 		})
@@ -4568,7 +4605,7 @@ function Section:AddDropdown(first, second)
 		Size = UDim2.new(1, -34, 1, 0),
 		Font = Enum.Font.Gotham,
 		Text = "",
-		TextSize = 10,
+		TextSize = FontSizes.Body,
 		TextColor3 = self._ui.Theme.Text,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -4583,7 +4620,7 @@ function Section:AddDropdown(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamBold,
 		Text = "v",
-		TextSize = 10,
+		TextSize = FontSizes.Caption,
 		TextColor3 = self._ui.Theme.Muted,
 		ZIndex = 6,
 		Parent = selector,
@@ -4659,7 +4696,7 @@ function Section:AddDropdown(first, second)
 				PlaceholderText = "Search options...",
 				PlaceholderColor3 = self._ui.Theme.Muted,
 				TextColor3 = self._ui.Theme.Text,
-				TextSize = 11,
+				TextSize = FontSizes.Body,
 				TextXAlignment = Enum.TextXAlignment.Left,
 				ZIndex = 505,
 				Parent = popup,
@@ -4754,7 +4791,7 @@ function Section:AddDropdown(first, second)
 						Size = UDim2.new(1, -48, 0, choice.Description ~= "" and 19 or rowHeight),
 						Font = Enum.Font.GothamMedium,
 						Text = choice.Title,
-						TextSize = 11,
+						TextSize = FontSizes.Label,
 						TextColor3 = self._ui.Theme.Text,
 						TextTransparency = (choice.Disabled or choice.Locked) and 0.55 or 0,
 						TextXAlignment = Enum.TextXAlignment.Left,
@@ -4768,7 +4805,7 @@ function Section:AddDropdown(first, second)
 							Size = UDim2.new(1, -48, 0, 16),
 							Font = Enum.Font.Gotham,
 							Text = choice.Description,
-							TextSize = 9,
+							TextSize = FontSizes.Body,
 							TextColor3 = self._ui.Theme.Muted,
 							TextTruncate = Enum.TextTruncate.AtEnd,
 							TextXAlignment = Enum.TextXAlignment.Left,
@@ -4784,7 +4821,7 @@ function Section:AddDropdown(first, second)
 						BackgroundTransparency = 1,
 						Font = Enum.Font.GothamBold,
 						Text = "",
-						TextSize = 13,
+						TextSize = FontSizes.Body,
 						TextColor3 = self._ui.Theme.AccentText,
 						ZIndex = 507,
 						Parent = optionButton,
@@ -4974,7 +5011,7 @@ function Section:AddKeybind(first, second)
 		AutoButtonColor = false,
 		Font = Enum.Font.GothamMedium,
 		Text = "None",
-		TextSize = 10,
+		TextSize = FontSizes.Small,
 		TextColor3 = self._ui.Theme.Text,
 		ZIndex = 5,
 		Parent = control.Root,
@@ -5168,7 +5205,7 @@ function Section:AddColorPicker(first, second)
 		Size = UDim2.new(1, -42, 1, 0),
 		Font = Enum.Font.Code,
 		Text = colorToHex(defaultColor),
-		TextSize = 10,
+		TextSize = FontSizes.Small,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 6,
@@ -5417,7 +5454,7 @@ function Section:AddColorPicker(first, second)
 			ClearTextOnFocus = false,
 			Font = Enum.Font.Code,
 			Text = colorToHex(self._value),
-			TextSize = 11,
+			TextSize = FontSizes.Body,
 			TextColor3 = self._ui.Theme.Text,
 			TextXAlignment = Enum.TextXAlignment.Center,
 			ZIndex = 505,
@@ -5438,7 +5475,7 @@ function Section:AddColorPicker(first, second)
 			AutoButtonColor = false,
 			Font = Enum.Font.GothamMedium,
 			Text = "Done",
-			TextSize = 10,
+			TextSize = FontSizes.Small,
 			TextColor3 = self._ui.Theme.AccentText,
 			ZIndex = 505,
 			Parent = content,
@@ -5591,7 +5628,7 @@ function Section:AddProgress(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamMedium,
 		Text = "0%",
-		TextSize = 10,
+		TextSize = FontSizes.Small,
 		TextColor3 = self._ui.Theme.Muted,
 		TextXAlignment = Enum.TextXAlignment.Right,
 		Parent = control.Root,
@@ -5762,7 +5799,7 @@ function Section:AddSegmented(first, second)
 				AutoButtonColor = false,
 				Font = Enum.Font.GothamMedium,
 				Text = choice.Title,
-				TextSize = 10,
+				TextSize = FontSizes.Body,
 				TextColor3 = self._ui.Theme.Muted,
 				LayoutOrder = index,
 				Parent = holder,
@@ -5849,7 +5886,7 @@ function Section:AddLabel(first, second)
 		Size = UDim2.fromScale(1, 1),
 		Font = options.Bold and Enum.Font.GothamMedium or Enum.Font.Gotham,
 		Text = tostring(text),
-		TextSize = options.TextSize or 11,
+		TextSize = options.TextSize or FontSizes.Body,
 		TextColor3 = self._ui.Theme[options.ColorToken or "Muted"] or self._ui.Theme.Muted,
 		TextWrapped = options.Wrap == true,
 		RichText = options.RichText == true,
@@ -5923,7 +5960,7 @@ function Section:AddParagraph(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.GothamMedium,
 		Text = value.Title,
-		TextSize = 12,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Text,
 		TextWrapped = true,
 		RichText = options.RichText == true,
@@ -5937,7 +5974,7 @@ function Section:AddParagraph(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Gotham,
 		Text = value.Content,
-		TextSize = 10,
+		TextSize = FontSizes.Body,
 		TextColor3 = self._ui.Theme.Muted,
 		TextWrapped = true,
 		RichText = options.RichText == true,
@@ -6063,7 +6100,7 @@ function Section:AddCode(first, second)
 		Size = UDim2.new(1, -96, 1, 0),
 		Font = Enum.Font.GothamMedium,
 		Text = tostring(options.Title),
-		TextSize = 12,
+		TextSize = FontSizes.Label,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		Parent = header,
@@ -6078,7 +6115,7 @@ function Section:AddCode(first, second)
 		AutoButtonColor = false,
 		Font = Enum.Font.GothamMedium,
 		Text = copyText,
-		TextSize = 10,
+		TextSize = FontSizes.Small,
 		TextColor3 = self._ui.Theme.Text,
 		Parent = header,
 	})
@@ -6108,7 +6145,7 @@ function Section:AddCode(first, second)
 		BackgroundTransparency = 1,
 		Font = Enum.Font.Code,
 		Text = codeValue,
-		TextSize = options.TextSize or 12,
+		TextSize = options.TextSize or FontSizes.Small,
 		TextColor3 = self._ui.Theme.Text,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		TextYAlignment = Enum.TextYAlignment.Top,
@@ -6208,7 +6245,7 @@ function Section:AddImage(options)
 			Size = UDim2.new(1, -24, 1, 0),
 			Font = Enum.Font.GothamMedium,
 			Text = tostring(options.Title),
-			TextSize = 12,
+			TextSize = FontSizes.Label,
 			TextColor3 = Color3.new(1, 1, 1),
 			TextXAlignment = Enum.TextXAlignment.Left,
 			Parent = scrim,
@@ -6389,7 +6426,7 @@ function Velora:Notify(options)
 		Size = UDim2.new(1, -90, 0, 22),
 		Font = Enum.Font.GothamMedium,
 		Text = options.Title,
-		TextSize = 12,
+		TextSize = FontSizes.Label,
 		TextColor3 = self.Theme.Text,
 		TextTruncate = Enum.TextTruncate.AtEnd,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -6403,7 +6440,7 @@ function Velora:Notify(options)
 		Size = UDim2.new(1, -70, 0, contentHeight),
 		Font = Enum.Font.Gotham,
 		Text = options.Content,
-		TextSize = 10,
+		TextSize = FontSizes.Body,
 		TextColor3 = self.Theme.Muted,
 		TextWrapped = true,
 		TextTruncate = Enum.TextTruncate.AtEnd,
@@ -6426,7 +6463,7 @@ function Velora:Notify(options)
 		AutoButtonColor = false,
 		Font = Enum.Font.GothamBold,
 		Text = "×",
-		TextSize = 10,
+		TextSize = FontSizes.Small,
 		TextColor3 = self.Theme.Muted,
 		Visible = options.CanClose ~= false,
 		ZIndex = 904,
@@ -6474,7 +6511,7 @@ function Velora:Notify(options)
 				AutoButtonColor = false,
 				Font = Enum.Font.GothamMedium,
 				Text = actionTitle,
-				TextSize = 9,
+				TextSize = FontSizes.Small,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextColor3 = self.Theme[textToken],
 				LayoutOrder = index,
@@ -6692,7 +6729,7 @@ function Velora:Dialog(options)
 		AutomaticSize = Enum.AutomaticSize.Y,
 		Font = Enum.Font.Gotham,
 		Text = options.Content,
-		TextSize = 12,
+		TextSize = FontSizes.Body,
 		TextColor3 = self.Theme.Muted,
 		TextWrapped = true,
 		TextXAlignment = Enum.TextXAlignment.Left,
@@ -6762,7 +6799,7 @@ function Velora:Dialog(options)
 			AutoButtonColor = false,
 			Font = Enum.Font.GothamMedium,
 			Text = buttonTitle,
-			TextSize = 12,
+			TextSize = FontSizes.Body,
 			TextTruncate = Enum.TextTruncate.AtEnd,
 			TextColor3 = self.Theme[textToken],
 			LayoutOrder = index,
@@ -6929,7 +6966,7 @@ function Velora:OpenCommandPalette()
 		PlaceholderText = "Search tabs, controls and commands...",
 		PlaceholderColor3 = self.Theme.Muted,
 		TextColor3 = self.Theme.Text,
-		TextSize = 12,
+		TextSize = FontSizes.Body,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 754,
 		Parent = card,
@@ -6949,7 +6986,7 @@ function Velora:OpenCommandPalette()
 		Size = UDim2.new(1, -36, 0, 20),
 		Font = Enum.Font.GothamMedium,
 		Text = "QUICK SEARCH   -   Up/Down to navigate, Enter to open",
-		TextSize = 9,
+		TextSize = FontSizes.Caption,
 		TextColor3 = self.Theme.Muted,
 		TextXAlignment = Enum.TextXAlignment.Left,
 		ZIndex = 754,
@@ -7103,7 +7140,7 @@ function Velora:OpenCommandPalette()
 				Size = UDim2.new(1, -94, 0, item.Description ~= "" and 22 or button.Size.Y.Offset),
 				Font = Enum.Font.GothamMedium,
 				Text = item.Title,
-				TextSize = 11,
+				TextSize = FontSizes.Label,
 				TextColor3 = self.Theme.Text,
 				TextTruncate = Enum.TextTruncate.AtEnd,
 				TextXAlignment = Enum.TextXAlignment.Left,
@@ -7118,7 +7155,7 @@ function Velora:OpenCommandPalette()
 					Size = UDim2.new(1, -94, 0, 17),
 					Font = Enum.Font.Gotham,
 					Text = item.Description,
-					TextSize = 9,
+					TextSize = FontSizes.Small,
 					TextColor3 = self.Theme.Muted,
 					TextTruncate = Enum.TextTruncate.AtEnd,
 					TextXAlignment = Enum.TextXAlignment.Left,
@@ -7135,7 +7172,7 @@ function Velora:OpenCommandPalette()
 				BorderSizePixel = 0,
 				Font = Enum.Font.GothamMedium,
 				Text = tostring(item.Kind),
-				TextSize = 8,
+				TextSize = FontSizes.Tiny,
 				TextColor3 = self.Theme.Muted,
 				ZIndex = 756,
 				Parent = button,
