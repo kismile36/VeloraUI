@@ -4046,6 +4046,10 @@ function Section:AddToggle(first, second)
 		ZIndex = 4,
 		Parent = control.Root,
 	})
+	control.TitleLabel.Size = UDim2.new(1, -74, 0, control.Description ~= "" and 21 or control._desktopHeight)
+	if control.DescriptionLabel then
+		control.DescriptionLabel.Size = UDim2.new(1, -74, 0, 20)
+	end
 	addCorner(switch, 10)
 	local switchStroke = addStroke(switch, self._ui.Theme.Border, 0.35, 1)
 	self._ui:_bindTheme(switchStroke, { Color = "Border" })
