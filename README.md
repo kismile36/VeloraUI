@@ -84,6 +84,8 @@ OpenButton:Visible(nil) -- 恢复自动显隐
 
 也可以在 `Velora.new({ OpenButton = {...} })` 或 `CreateWindow({ OpenButton = {...} })` 中配置。传入 `OpenButton = false` 可关闭入口；`OnlyIcon` 会切换紧凑图标模式；`Color` 支持 `Color3` 或 `ColorSequence`。
 
+`OpenButton.Icon` 或 `Window.Icon` 设为 `""`（也支持 `false`）时不会创建图标，也不会留下空白占位。运行时可使用 `OpenButton:SetIcon("")` 或 `Window:SetIcon("")` 立即折叠图标区域。
+
 ## 快速开始
 
 ```lua

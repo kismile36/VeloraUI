@@ -8,7 +8,7 @@ local TextService = game:GetService("TextService")
 
 local Velora = {}
 Velora.__index = Velora
-Velora.Version = "1.3.0"
+Velora.Version = "1.3.1"
 
 local Typography = {
 	Regular = Enum.Font.BuilderSans,
@@ -1569,6 +1569,13 @@ function Velora:_openPopup(anchor, options)
 	return popup, maid, place
 end
 
+local function hasIconValue(icon)
+	if icon == nil or icon == false then
+		return false
+	end
+	return type(icon) ~= "string" or string.match(icon, "%S") ~= nil
+end
+
 local function makeIconLabel(parent, text, size, zIndex)
 	local iconText = tostring(text or "*")
 	local image
@@ -1628,7 +1635,7 @@ function OpenButtonHandle:_resolveTitle()
 end
 
 function OpenButtonHandle:_resolveIcon()
-	if self.Options.Icon ~= nil and self.Options.Icon ~= false then
+	if self.Options.Icon ~= nil then
 		return self.Options.Icon
 	end
 	if self.Target and not self.Target._destroyed and self.Target.Options.Icon ~= nil then
@@ -1659,10 +1666,16 @@ function OpenButtonHandle:_render()
 		return self
 	end
 	local title = self:_resolveTitle()
-	local onlyIcon = self.Options.OnlyIcon == true
+	local resolvedIcon = self:_resolveIcon()
+	local hasIcon = hasIconValue(resolvedIcon)
+	local onlyIcon = self.Options.OnlyIcon == true and hasIcon
 	local draggable = self.Options.Draggable ~= false
 	local dragWidth = draggable and 40 or 0
-	local actionWidth = onlyIcon and 44 or math.clamp(textWidth(title, 13, Typography.Medium) + 58, 104, 240)
+	local horizontalPadding = hasIcon and 58 or 24
+	local minimumWidth = hasIcon and 104 or 72
+	local actionWidth = onlyIcon
+		and 44
+		or math.clamp(textWidth(title, 13, Typography.Medium) + horizontalPadding, minimumWidth, 240)
 	self.Root.Size = UDim2.fromOffset(dragWidth + actionWidth, 44)
 	self.Root.BackgroundTransparency = math.clamp(tonumber(self.Options.Transparency) or 0.08, 0, 1)
 	self.DragHandle.Visible = draggable
@@ -1671,16 +1684,22 @@ function OpenButtonHandle:_render()
 	self.Action.Size = UDim2.new(1, -dragWidth, 1, 0)
 	self.TitleLabel.Text = title
 	self.TitleLabel.Visible = not onlyIcon
+	self.TitleLabel.Position = UDim2.fromOffset(hasIcon and 44 or 12, 0)
+	self.TitleLabel.Size = UDim2.new(1, hasIcon and -54 or -24, 1, 0)
+	self.IconHost.Visible = hasIcon
 	self.IconHost.AnchorPoint = onlyIcon and Vector2.new(0.5, 0.5) or Vector2.new(0, 0.5)
 	self.IconHost.Position = onlyIcon and UDim2.fromScale(0.5, 0.5) or UDim2.new(0, 12, 0.5, 0)
 	if self.Icon then
 		self._ui._themeBindings[self.Icon] = nil
 		self.Icon:Destroy()
+		self.Icon = nil
 	end
-	self.Icon = makeIconLabel(self.IconHost, self:_resolveIcon(), 22, 998)
-	self.Icon.AnchorPoint = Vector2.new(0.5, 0.5)
-	self.Icon.Position = UDim2.fromScale(0.5, 0.5)
-	bindIconTheme(self._ui, self.Icon, "Text")
+	if hasIcon then
+		self.Icon = makeIconLabel(self.IconHost, resolvedIcon, 22, 998)
+		self.Icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		self.Icon.Position = UDim2.fromScale(0.5, 0.5)
+		bindIconTheme(self._ui, self.Icon, "Text")
+	end
 
 	local scale = math.clamp(tonumber(self.Options.Scale) or 1, 0.6, 1.5)
 	self.Scale.Scale = scale
@@ -2151,20 +2170,18 @@ function Velora:CreateWindow(options)
 		Size = UDim2.fromOffset(36, 36),
 		BackgroundColor3 = self.Theme.Accent,
 		BorderSizePixel = 0,
+		Visible = false,
 		ZIndex = 7,
 		Parent = brand,
 	})
 	addCorner(logo, 10)
 	self:_bindTheme(logo, { BackgroundColor3 = "Accent" })
-	local logoText = makeIconLabel(logo, options.Icon, 36, 8)
-	logoText.Size = UDim2.fromScale(1, 1)
-	bindIconTheme(self, logoText, "AccentText")
 
 	local brandTitle = create("TextLabel", {
 		Name = "Title",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(48, 0),
-		Size = UDim2.new(1, -48, 0, 22),
+		Position = UDim2.fromOffset(0, 0),
+		Size = UDim2.new(1, 0, 0, 22),
 		Font = Enum.Font.GothamBold,
 		Text = tostring(options.Title),
 		TextSize = 15,
@@ -2177,8 +2194,8 @@ function Velora:CreateWindow(options)
 	local brandSubtitle = create("TextLabel", {
 		Name = "Subtitle",
 		BackgroundTransparency = 1,
-		Position = UDim2.fromOffset(48, 21),
-		Size = UDim2.new(1, -48, 0, 17),
+		Position = UDim2.fromOffset(0, 21),
+		Size = UDim2.new(1, 0, 0, 17),
 		Font = Enum.Font.Gotham,
 		Text = tostring(options.Subtitle),
 		TextSize = 11,
@@ -2192,6 +2209,30 @@ function Velora:CreateWindow(options)
 	self:_bindTheme(brandSubtitle, { TextColor3 = "Muted" })
 	window.BrandTitle = brandTitle
 	window.BrandSubtitle = brandSubtitle
+	window.Logo = logo
+	local logoIcon
+	local function renderBrandIcon()
+		local hasIcon = hasIconValue(window.Options.Icon)
+		local textOffset = hasIcon and 48 or 0
+		logo.Visible = hasIcon
+		brandTitle.Position = UDim2.fromOffset(textOffset, 0)
+		brandTitle.Size = UDim2.new(1, -textOffset, 0, 22)
+		brandSubtitle.Position = UDim2.fromOffset(textOffset, 21)
+		brandSubtitle.Size = UDim2.new(1, -textOffset, 0, 17)
+		if logoIcon then
+			self._themeBindings[logoIcon] = nil
+			logoIcon:Destroy()
+			logoIcon = nil
+		end
+		if hasIcon then
+			logoIcon = makeIconLabel(logo, window.Options.Icon, 36, 8)
+			logoIcon.Size = UDim2.fromScale(1, 1)
+			bindIconTheme(self, logoIcon, "AccentText")
+		end
+		window.LogoIcon = logoIcon
+	end
+	window._renderBrandIcon = renderBrandIcon
+	renderBrandIcon()
 
 	local divider = create("Frame", {
 		Name = "Divider",
@@ -2685,6 +2726,20 @@ function Window:SetTitle(title, subtitle)
 	if subtitle ~= nil then
 		self.Options.Subtitle = tostring(subtitle)
 		self.BrandSubtitle.Text = self.Options.Subtitle
+	end
+	if self._ui.OpenButton and self._ui.OpenButton.Target == self then
+		self._ui.OpenButton:_render()
+	end
+	return self
+end
+
+function Window:SetIcon(icon)
+	if self._destroyed then
+		return self
+	end
+	self.Options.Icon = icon
+	if self._renderBrandIcon then
+		self._renderBrandIcon()
 	end
 	if self._ui.OpenButton and self._ui.OpenButton.Target == self then
 		self._ui.OpenButton:_render()
