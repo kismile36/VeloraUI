@@ -1561,6 +1561,17 @@ function Velora:_openPopup(anchor, options)
 	self:_bindTheme(popup, { BackgroundColor3 = "Surface" })
 	self:_bindTheme(popupStroke, { Color = "Border" })
 	maid:Give(popup)
+	local scaleSource
+	for _, window in ipairs(self._windows) do
+		if window.Root and anchor:IsDescendantOf(window.Root) then
+			scaleSource = window.UIScale
+			break
+		end
+	end
+	local popupScale = create("UIScale", {
+		Scale = scaleSource and scaleSource.Scale or 1,
+		Parent = popup,
+	})
 
 	local function place()
 		if not anchor or not anchor.Parent or not popup.Parent then
@@ -1587,6 +1598,12 @@ function Velora:_openPopup(anchor, options)
 		x = math.clamp(x, 10, math.max(10, viewport.X - popupSize.X - 10))
 		y = math.clamp(y, 10, math.max(10, viewport.Y - popupSize.Y - 10))
 		popup.Position = UDim2.fromOffset(x, y)
+	end
+	if scaleSource then
+		maid:Give(scaleSource:GetPropertyChangedSignal("Scale"):Connect(function()
+			popupScale.Scale = scaleSource.Scale
+			task.defer(place)
+		end))
 	end
 
 	maid:Give(blocker.Activated:Connect(function()
@@ -2091,6 +2108,11 @@ function Velora:CreateWindow(options)
 		MinSize = Vector2.new(560, 390),
 		MaxSize = Vector2.new(1280, 860),
 		SidebarWidth = 180,
+		AutoScale = true,
+		MinScale = 0.3,
+		MaxScale = 1,
+		ScalePadding = 40,
+		MobileLayout = false,
 		Resizable = true,
 		Search = true,
 		ShowUser = true,
@@ -2119,6 +2141,9 @@ function Velora:CreateWindow(options)
 	if providedOptions.Theme then
 		self:SetTheme(providedOptions.Theme)
 	end
+	options.SidebarWidth = math.max(120, tonumber(options.SidebarWidth) or 180)
+	options.MinScale = math.max(0.1, tonumber(options.MinScale) or 0.3)
+	options.MaxScale = math.max(options.MinScale, tonumber(options.MaxScale) or 1)
 
 	local window = setmetatable({}, Window)
 	window._ui = self
@@ -2131,6 +2156,7 @@ function Velora:CreateWindow(options)
 	window._minimizedToOpenButton = false
 	window._closeDialog = nil
 	window._mobile = false
+	window._deviceMobile = false
 	window._requestedSize = Vector2.new(options.Size.X.Offset, options.Size.Y.Offset)
 	window._lastExpandedSize = options.Size
 	window._id = self:_nextId()
@@ -2146,6 +2172,11 @@ function Velora:CreateWindow(options)
 	})
 	window.Root = root
 	window._maid:Give(root)
+	local windowScale = create("UIScale", {
+		Scale = 1,
+		Parent = root,
+	})
+	window.UIScale = windowScale
 
 	local panel = create("Frame", {
 		Name = "Panel",
@@ -2674,32 +2705,36 @@ function Velora:CreateWindow(options)
 		if viewport.X <= 0 or viewport.Y <= 0 then
 			return
 		end
-		local mobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
-		window._mobile = mobile
-		local sidebarWidth = mobile and 70 or options.SidebarWidth
+		local deviceMobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
+		local mobileLayout = deviceMobile and options.MobileLayout == true
+		window._deviceMobile = deviceMobile
+		window._mobile = mobileLayout
+		local sidebarWidth = mobileLayout and 70 or options.SidebarWidth
 		brand.Size = UDim2.fromOffset(sidebarWidth - 16, 42)
-		brandTitle.Visible = not mobile
-		brandSubtitle.Visible = not mobile
+		brandTitle.Visible = not mobileLayout
+		brandSubtitle.Visible = not mobileLayout
 		divider.Position = UDim2.fromOffset(sidebarWidth - 1, 12)
 		pageTitle.Position = UDim2.fromOffset(sidebarWidth + 18, 0)
 		pageTitle.Size = UDim2.new(1, -(sidebarWidth + 170), 1, 0)
 		sidebar.Size = UDim2.new(0, sidebarWidth, 1, -58)
 		content.Position = UDim2.fromOffset(sidebarWidth, 58)
 		content.Size = UDim2.new(1, -sidebarWidth, 1, -58)
-		tabsLabel.Visible = not mobile
-		tabsList.Position = UDim2.fromOffset(8, mobile and 12 or 40)
-		tabsList.Size = UDim2.new(1, -16, 1, mobile and -24 or (options.ShowUser and -122 or -52))
+		tabsLabel.Visible = not mobileLayout
+		tabsList.Position = UDim2.fromOffset(8, mobileLayout and 12 or 40)
+		tabsList.Size = UDim2.new(1, -16, 1, mobileLayout and -24 or (options.ShowUser and -122 or -52))
 		if userCard then
-			userCard.Visible = not mobile
+			userCard.Visible = not mobileLayout
 		end
-		resizeGrip.Visible = options.Resizable and not mobile and not window._minimized
+		resizeGrip.Visible = options.Resizable and not deviceMobile and not window._minimized
 		for _, tab in ipairs(window._tabs) do
-			tab:_setMobile(mobile)
+			tab:_setMobile(mobileLayout)
 		end
 		if not window._minimized then
 			local targetSize
-			if mobile then
+			if mobileLayout and not options.AutoScale then
 				targetSize = Vector2.new(math.max(1, viewport.X - 12), math.max(1, viewport.Y - 20))
+			elseif options.AutoScale then
+				targetSize = window._requestedSize
 			else
 				targetSize = Vector2.new(
 					math.clamp(window._requestedSize.X, math.min(options.MinSize.X, viewport.X - 20), math.min(options.MaxSize.X, viewport.X - 20)),
@@ -2707,6 +2742,15 @@ function Velora:CreateWindow(options)
 				)
 			end
 			root.Size = UDim2.fromOffset(targetSize.X, targetSize.Y)
+			local scale = 1
+			if options.AutoScale then
+				local padding = math.max(0, tonumber(options.ScalePadding) or 40)
+				local availableWidth = math.max(1, viewport.X - padding * 2)
+				local availableHeight = math.max(1, viewport.Y - padding * 2)
+				local fitScale = math.min(availableWidth / targetSize.X, availableHeight / targetSize.Y)
+				scale = math.clamp(fitScale, options.MinScale, options.MaxScale)
+			end
+			windowScale.Scale = scale
 		end
 	end
 	window._updateResponsive = updateResponsive
@@ -2924,7 +2968,7 @@ function Window:Restore()
 	self.Content.Visible = true
 	self.TopDivider.Visible = true
 	self.PageTitle.Visible = true
-	self.ResizeGrip.Visible = self.Options.Resizable and not self._mobile
+	self.ResizeGrip.Visible = self.Options.Resizable and not self._deviceMobile
 	if minimizedToOpenButton then
 		self.Root.Size = expandedSize
 	else
