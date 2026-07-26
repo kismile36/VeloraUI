@@ -1796,7 +1796,7 @@ function OpenButtonHandle:Edit(options)
 	end
 	if type(options) == "table" and options.Enabled == false then
 		for _, window in ipairs(shallowCopy(self._ui._windows)) do
-			if not window._destroyed and window._minimizedToOpenButton then
+			if not window._destroyed and (window._minimizedToOpenButton or window._minimizingToOpenButton) then
 				window:Restore()
 			end
 		end
@@ -1845,7 +1845,7 @@ function OpenButtonHandle:Visible(visible)
 	end
 	if visible == false then
 		for _, window in ipairs(shallowCopy(self._ui._windows)) do
-			if not window._destroyed and window._minimizedToOpenButton then
+			if not window._destroyed and (window._minimizedToOpenButton or window._minimizingToOpenButton) then
 				window:Restore()
 			end
 		end
@@ -1898,7 +1898,7 @@ function OpenButtonHandle:Destroy()
 	end
 	if self._ui and not self._ui._destroyed then
 		for _, window in ipairs(shallowCopy(self._ui._windows)) do
-			if not window._destroyed and window._minimizedToOpenButton then
+			if not window._destroyed and (window._minimizedToOpenButton or window._minimizingToOpenButton) then
 				window:Restore()
 			end
 		end
@@ -2154,6 +2154,8 @@ function Velora:CreateWindow(options)
 	window._selectedTab = nil
 	window._minimized = false
 	window._minimizedToOpenButton = false
+	window._minimizingToOpenButton = false
+	window._animationRevision = 0
 	window._closeDialog = nil
 	window._mobile = false
 	window._deviceMobile = false
@@ -2462,9 +2464,12 @@ function Velora:CreateWindow(options)
 		SortOrder = Enum.SortOrder.LayoutOrder,
 		Parent = tabsList,
 	})
-	window._maid:Give(tabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-		tabsList.CanvasSize = UDim2.fromOffset(0, tabsLayout.AbsoluteContentSize.Y + 4)
-	end))
+	local function updateTabsCanvas()
+		local scale = math.max(windowScale.Scale, 0.01)
+		tabsList.CanvasSize = UDim2.fromOffset(0, tabsLayout.AbsoluteContentSize.Y / scale + 4)
+	end
+	window._maid:Give(tabsLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateTabsCanvas))
+	window._maid:Give(windowScale:GetPropertyChangedSignal("Scale"):Connect(updateTabsCanvas))
 	window.TabsList = tabsList
 
 	local userCard
@@ -2927,6 +2932,8 @@ function Window:Minimize()
 		and openButton:_isAlive()
 		and openButton.Options.Enabled ~= false
 		and openButton._visibilityOverride ~= false
+	self._animationRevision = self._animationRevision + 1
+	local revision = self._animationRevision
 	self._minimized = true
 	self._lastExpandedSize = self.Root.Size
 	self._ui:_cancelKeybindCapture()
@@ -2934,16 +2941,52 @@ function Window:Minimize()
 	self._ui:CloseCommandPalette()
 	if useOpenButton then
 		for _, window in ipairs(shallowCopy(self._ui._windows)) do
-			if window ~= self and not window._destroyed and window._minimizedToOpenButton then
+			if window ~= self
+				and not window._destroyed
+				and (window._minimizedToOpenButton or window._minimizingToOpenButton)
+			then
 				window:Restore()
 			end
 		end
-		self._minimizedToOpenButton = true
+		self._minimizedToOpenButton = false
+		self._minimizingToOpenButton = true
 		openButton.Target = self
-		self.Root.Visible = false
-		openButton:_render()
+		self.ResizeGrip.Visible = false
+		local expandedScale = math.max(self.UIScale.Scale, 0.01)
+		local function finishMinimize()
+			if self._destroyed
+				or self._animationRevision ~= revision
+				or not self._minimized
+				or not self._minimizingToOpenButton
+			then
+				return
+			end
+			self._minimizingToOpenButton = false
+			self._minimizedToOpenButton = true
+			self.Root.Visible = false
+			self.UIScale.Scale = expandedScale
+			openButton.Target = self
+			openButton:_render()
+			local openButtonScale = math.clamp(tonumber(openButton.Options.Scale) or 1, 0.6, 1.5)
+			openButton.Scale.Scale = openButtonScale * 0.82
+			self._ui:_updateRestoreButton()
+			self._ui:_tween(openButton.Scale, 0.2, { Scale = openButtonScale }, Enum.EasingStyle.Back)
+		end
+		local tween = self._ui:_tween(self.UIScale, 0.17, { Scale = expandedScale * 0.86 })
+		if tween then
+			local connection
+			connection = tween.Completed:Connect(function()
+				if connection then
+					connection:Disconnect()
+				end
+				finishMinimize()
+			end)
+		else
+			finishMinimize()
+		end
 	else
 		self._minimizedToOpenButton = false
+		self._minimizingToOpenButton = false
 		self.Sidebar.Visible = false
 		self.Content.Visible = false
 		self.TopDivider.Visible = false
@@ -2959,23 +3002,34 @@ function Window:Restore()
 	if not self._minimized or not self.Root then
 		return self
 	end
+	self._animationRevision = self._animationRevision + 1
 	local minimizedToOpenButton = self._minimizedToOpenButton
+	local minimizingToOpenButton = self._minimizingToOpenButton
+	local currentScale = math.max(self.UIScale.Scale, 0.01)
+	local rootWasHidden = not self.Root.Visible
 	local expandedSize = self._lastExpandedSize or self.Options.Size
 	self._minimized = false
 	self._minimizedToOpenButton = false
+	self._minimizingToOpenButton = false
 	self.Root.Visible = true
 	self.Sidebar.Visible = true
 	self.Content.Visible = true
 	self.TopDivider.Visible = true
 	self.PageTitle.Visible = true
 	self.ResizeGrip.Visible = self.Options.Resizable and not self._deviceMobile
-	if minimizedToOpenButton then
+	if minimizedToOpenButton or minimizingToOpenButton then
 		self.Root.Size = expandedSize
+		if self._updateResponsive then
+			self._updateResponsive()
+		end
+		local expandedScale = math.max(self.UIScale.Scale, 0.01)
+		self.UIScale.Scale = rootWasHidden and expandedScale * 0.86 or math.min(currentScale, expandedScale)
+		self._ui:_tween(self.UIScale, 0.22, { Scale = expandedScale }, Enum.EasingStyle.Back)
 	else
 		self._ui:_tween(self.Root, 0.2, { Size = expandedSize })
-	end
-	if self._updateResponsive then
-		task.defer(self._updateResponsive)
+		if self._updateResponsive then
+			task.defer(self._updateResponsive)
+		end
 	end
 	self._ui:_updateRestoreButton()
 	return self
@@ -3243,10 +3297,11 @@ function Window:AddTab(options, icon)
 			return
 		end
 		local height
+		local scale = math.max(tab._window.UIScale and tab._window.UIScale.Scale or 1, 0.01)
 		if tab._mobile then
-			height = leftLayout.AbsoluteContentSize.Y
+			height = leftLayout.AbsoluteContentSize.Y / scale
 		else
-			height = math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y)
+			height = math.max(leftLayout.AbsoluteContentSize.Y, rightLayout.AbsoluteContentSize.Y) / scale
 		end
 		columnHost.Size = UDim2.new(1, -32, 0, height)
 		page.CanvasSize = UDim2.fromOffset(0, height + 32)
@@ -3254,6 +3309,9 @@ function Window:AddTab(options, icon)
 	tab._updateCanvas = updateCanvas
 	tab._maid:Give(leftLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas))
 	tab._maid:Give(rightLayout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateCanvas))
+	if tab._window.UIScale then
+		tab._maid:Give(tab._window.UIScale:GetPropertyChangedSignal("Scale"):Connect(updateCanvas))
+	end
 
 	function tab:_refreshVisual(selected)
 		self._ui:_tween(button, 0.14, { BackgroundTransparency = selected and 0 or 1 })
@@ -3709,14 +3767,30 @@ function Velora:_removeSearchItem(item)
 	end
 end
 
-local function attachHover(ui, maid, object, restingTransparency, hoverTransparency)
+local function attachHover(ui, maid, object, restingTransparency, hoverTransparency, stroke)
 	restingTransparency = restingTransparency or 0
 	hoverTransparency = hoverTransparency or 0
 	maid:Give(object.MouseEnter:Connect(function()
 		ui:_tween(object, 0.12, { BackgroundTransparency = hoverTransparency })
+		if stroke then
+			ui:_bindTheme(stroke, { Color = "Accent" })
+			ui:_tween(stroke, 0.12, {
+				Color = ui.Theme.Accent,
+				Transparency = 0.16,
+				Thickness = 1.4,
+			})
+		end
 	end))
 	maid:Give(object.MouseLeave:Connect(function()
 		ui:_tween(object, 0.12, { BackgroundTransparency = restingTransparency })
+		if stroke then
+			ui:_bindTheme(stroke, { Color = "Border" })
+			ui:_tween(stroke, 0.12, {
+				Color = ui.Theme.Border,
+				Transparency = 0.55,
+				Thickness = 1,
+			})
+		end
 	end))
 end
 
@@ -3898,7 +3972,7 @@ function Section:_makeControl(kind, options, defaultValue, sanitize, height)
 			end)
 		end,
 	})
-	attachHover(self._ui, control._maid, root, 0.12, 0)
+	attachHover(self._ui, control._maid, root, 0.12, 0, stroke)
 	return control
 end
 
@@ -4776,9 +4850,14 @@ function Section:AddDropdown(first, second)
 			Parent = list,
 		})
 		self._ui:_bindTheme(list, { ScrollBarImageColor3 = "Border" })
-		popupMaid:Give(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-			list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y + 4)
-		end))
+		local function updateOptionsCanvas()
+			local scale = math.max(self._window.UIScale and self._window.UIScale.Scale or 1, 0.01)
+			list.CanvasSize = UDim2.fromOffset(0, layout.AbsoluteContentSize.Y / scale + 4)
+		end
+		popupMaid:Give(layout:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(updateOptionsCanvas))
+		if self._window.UIScale then
+			popupMaid:Give(self._window.UIScale:GetPropertyChangedSignal("Scale"):Connect(updateOptionsCanvas))
+		end
 
 		local optionButtons = {}
 		local function isSelected(value)
@@ -6201,9 +6280,13 @@ function Section:AddCode(first, second)
 	})
 	self._ui:_bindTheme(codeLabel, { TextColor3 = "Text" })
 	local function updateCanvas()
-		scroll.CanvasSize = UDim2.fromOffset(codeLabel.AbsoluteSize.X + 24, codeLabel.AbsoluteSize.Y + 20)
+		local scale = math.max(self._window.UIScale and self._window.UIScale.Scale or 1, 0.01)
+		scroll.CanvasSize = UDim2.fromOffset(codeLabel.AbsoluteSize.X / scale + 24, codeLabel.AbsoluteSize.Y / scale + 20)
 	end
 	control._maid:Give(codeLabel:GetPropertyChangedSignal("AbsoluteSize"):Connect(updateCanvas))
+	if self._window.UIScale then
+		control._maid:Give(self._window.UIScale:GetPropertyChangedSignal("Scale"):Connect(updateCanvas))
+	end
 	control._maid:Give(copyButton.Activated:Connect(function()
 		local setClipboard = getEnvironmentFunction("setclipboard") or getEnvironmentFunction("toclipboard")
 		if setClipboard then
