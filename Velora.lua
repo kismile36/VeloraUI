@@ -3853,9 +3853,46 @@ function Section:AddButton(first, second)
 		self._ui.State._values[registeredFlag] = nil
 	end
 	control.Root.Selectable = false
-	control.TitleLabel.Size = UDim2.new(1, -24, 0, control.Description ~= "" and 21 or control._desktopHeight)
+	control.TitleLabel.Size = UDim2.new(1, -52, 0, control.Description ~= "" and 21 or control._desktopHeight)
 	if control.DescriptionLabel then
-		control.DescriptionLabel.Size = UDim2.new(1, -24, 0, 20)
+		control.DescriptionLabel.Size = UDim2.new(1, -52, 0, 20)
+	end
+	local mouseIcon = create("Frame", {
+		Name = "MousePointerClick",
+		AnchorPoint = Vector2.new(1, 0.5),
+		Position = UDim2.new(1, -12, 0.5, 0),
+		Size = UDim2.fromOffset(24, 24),
+		BackgroundTransparency = 1,
+		ZIndex = 4,
+		Parent = control.Root,
+	})
+	local cursorIcon = create("ImageLabel", {
+		Name = "Pointer",
+		Position = UDim2.fromOffset(1, 6),
+		Size = UDim2.fromOffset(16, 16),
+		BackgroundTransparency = 1,
+		Image = "rbxasset://textures/Cursors/KeyboardMouse/ArrowFarCursor.png",
+		ImageColor3 = self._ui.Theme.Muted,
+		ScaleType = Enum.ScaleType.Fit,
+		ZIndex = 4,
+		Parent = mouseIcon,
+	})
+	self._ui:_bindTheme(cursorIcon, { ImageColor3 = "Muted" })
+	for _, rayOptions in ipairs({
+		{Position = UDim2.fromOffset(17, 1), Size = UDim2.fromOffset(1, 5), Rotation = 0},
+		{Position = UDim2.fromOffset(20, 7), Size = UDim2.fromOffset(5, 1), Rotation = 0},
+		{Position = UDim2.fromOffset(19, 3), Size = UDim2.fromOffset(1, 5), Rotation = 45},
+	}) do
+		local ray = create("Frame", {
+			Position = rayOptions.Position,
+			Size = rayOptions.Size,
+			Rotation = rayOptions.Rotation,
+			BackgroundColor3 = self._ui.Theme.Muted,
+			BorderSizePixel = 0,
+			ZIndex = 4,
+			Parent = mouseIcon,
+		})
+		self._ui:_bindTheme(ray, { BackgroundColor3 = "Muted" })
 	end
 	local hitbox = create("TextButton", {
 		Name = "Hitbox",
