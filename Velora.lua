@@ -2148,12 +2148,15 @@ function Velora:CreateWindow(options)
 		Subtitle = "Universal interface",
 		Icon = "V",
 		Size = UDim2.fromOffset(900, 590),
+		CornerRadius = 18,
 		MinSize = Vector2.new(560, 390),
 		MaxSize = Vector2.new(1280, 860),
 		SidebarWidth = 180,
 		AutoScale = true,
 		MinScale = 0.3,
 		MaxScale = 1,
+		MobileMinScale = 0.2,
+		MobileMaxScale = 1.15,
 		ScalePadding = 40,
 		MobileLayout = false,
 		Resizable = true,
@@ -2185,8 +2188,11 @@ function Velora:CreateWindow(options)
 		self:SetTheme(providedOptions.Theme)
 	end
 	options.SidebarWidth = math.max(120, tonumber(options.SidebarWidth) or 180)
+	options.CornerRadius = math.max(0, tonumber(options.CornerRadius) or 18)
 	options.MinScale = math.max(0.1, tonumber(options.MinScale) or 0.3)
 	options.MaxScale = math.max(options.MinScale, tonumber(options.MaxScale) or 1)
+	options.MobileMinScale = math.max(0.1, tonumber(options.MobileMinScale) or 0.2)
+	options.MobileMaxScale = math.max(options.MobileMinScale, tonumber(options.MobileMaxScale) or 1.15)
 
 	local window = setmetatable({}, Window)
 	window._ui = self
@@ -2202,6 +2208,7 @@ function Velora:CreateWindow(options)
 	window._closeDialog = nil
 	window._mobile = false
 	window._deviceMobile = false
+	window._manualScale = nil
 	window._requestedSize = Vector2.new(options.Size.X.Offset, options.Size.Y.Offset)
 	window._lastExpandedSize = options.Size
 	window._id = self:_nextId()
@@ -2232,7 +2239,7 @@ function Velora:CreateWindow(options)
 		ZIndex = 1,
 		Parent = root,
 	})
-	addCorner(panel, 14)
+	addCorner(panel, options.CornerRadius)
 	self:_bindTheme(panel, { BackgroundColor3 = "Background" })
 	window.Panel = panel
 
@@ -2622,7 +2629,8 @@ function Velora:CreateWindow(options)
 		Size = UDim2.fromOffset(28, 28),
 		BackgroundTransparency = 1,
 		AutoButtonColor = false,
-		Text = "+",
+		Selectable = false,
+		Text = "◢",
 		Font = Enum.Font.GothamBold,
 		TextSize = 17,
 		TextColor3 = self.Theme.Muted,
@@ -2709,27 +2717,52 @@ function Velora:CreateWindow(options)
 	local resizeInput
 	local resizeStart
 	local initialSize
+	local initialScale
 	window._maid:Give(resizeGrip.InputBegan:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
 			resizing = true
 			resizeInput = input
 			resizeStart = Vector2.new(input.Position.X, input.Position.Y)
-			initialSize = root.AbsoluteSize
+			initialSize = window._requestedSize
+			initialScale = math.max(windowScale.Scale, 0.01)
 		end
 	end))
 	window._maid:Give(UserInputService.InputChanged:Connect(function(input)
-		if not resizing or (input ~= resizeInput and input.UserInputType ~= Enum.UserInputType.MouseMovement) then
+		local mouseMovement = resizeInput
+			and resizeInput.UserInputType == Enum.UserInputType.MouseButton1
+			and input.UserInputType == Enum.UserInputType.MouseMovement
+		if not resizing or (input ~= resizeInput and not mouseMovement) then
 			return
 		end
-		local delta = Vector2.new(input.Position.X, input.Position.Y) - resizeStart
+		local screenDelta = Vector2.new(input.Position.X, input.Position.Y) - resizeStart
+		if window._deviceMobile then
+			local scaleDelta = screenDelta.X / math.max(initialSize.X, 1)
+				+ screenDelta.Y / math.max(initialSize.Y, 1)
+			local nextScale = math.clamp(
+				initialScale + scaleDelta,
+				options.MobileMinScale,
+				options.MobileMaxScale
+			)
+			window._manualScale = nextScale
+			windowScale.Scale = nextScale
+			local gripSize = math.floor(46 / nextScale + 0.5)
+			resizeGrip.Size = UDim2.fromOffset(gripSize, gripSize)
+			resizeGrip.TextSize = math.floor(18 / nextScale + 0.5)
+			return
+		end
+		local delta = screenDelta * 2 / initialScale
 		local viewport = self.WindowLayer.AbsoluteSize
 		local maximum = Vector2.new(
 			math.min(options.MaxSize.X, viewport.X - 20),
 			math.min(options.MaxSize.Y, viewport.Y - 20)
 		)
+		local minimum = Vector2.new(
+			math.min(options.MinSize.X, maximum.X),
+			math.min(options.MinSize.Y, maximum.Y)
+		)
 		local nextSize = Vector2.new(
-			math.clamp(initialSize.X + delta.X, math.min(options.MinSize.X, maximum.X), maximum.X),
-			math.clamp(initialSize.Y + delta.Y, math.min(options.MinSize.Y, maximum.Y), maximum.Y)
+			math.clamp(initialSize.X + delta.X, minimum.X, maximum.X),
+			math.clamp(initialSize.Y + delta.Y, minimum.Y, maximum.Y)
 		)
 		root.Size = UDim2.fromOffset(nextSize.X, nextSize.Y)
 		window._requestedSize = nextSize
@@ -2753,7 +2786,8 @@ function Velora:CreateWindow(options)
 		if viewport.X <= 0 or viewport.Y <= 0 then
 			return
 		end
-		local deviceMobile = self.Options.Mobile and (viewport.X < 720 or viewport.Y < 420)
+		local deviceMobile = self.Options.Mobile
+			and (UserInputService.TouchEnabled or viewport.X < 720 or viewport.Y < 420)
 		local mobileLayout = deviceMobile and options.MobileLayout == true
 		window._deviceMobile = deviceMobile
 		window._mobile = mobileLayout
@@ -2773,7 +2807,7 @@ function Velora:CreateWindow(options)
 		if userCard then
 			userCard.Visible = not mobileLayout
 		end
-		resizeGrip.Visible = options.Resizable and not deviceMobile and not window._minimized
+		resizeGrip.Visible = options.Resizable and not window._minimized
 		for _, tab in ipairs(window._tabs) do
 			tab:_setMobile(mobileLayout)
 		end
@@ -2798,7 +2832,19 @@ function Velora:CreateWindow(options)
 				local fitScale = math.min(availableWidth / targetSize.X, availableHeight / targetSize.Y)
 				scale = math.clamp(fitScale, options.MinScale, options.MaxScale)
 			end
+			if deviceMobile and window._manualScale then
+				scale = math.clamp(window._manualScale, options.MobileMinScale, options.MobileMaxScale)
+			end
 			windowScale.Scale = scale
+		end
+		local gripScale = math.max(windowScale.Scale, 0.01)
+		if deviceMobile then
+			local gripSize = math.floor(46 / gripScale + 0.5)
+			resizeGrip.Size = UDim2.fromOffset(gripSize, gripSize)
+			resizeGrip.TextSize = math.floor(18 / gripScale + 0.5)
+		else
+			resizeGrip.Size = UDim2.fromOffset(28, 28)
+			resizeGrip.TextSize = 17
 		end
 	end
 	window._updateResponsive = updateResponsive
@@ -3059,7 +3105,7 @@ function Window:Restore()
 	self.Content.Visible = true
 	self.TopDivider.Visible = true
 	self.PageTitle.Visible = true
-	self.ResizeGrip.Visible = self.Options.Resizable and not self._deviceMobile
+	self.ResizeGrip.Visible = self.Options.Resizable
 	if minimizedToOpenButton or minimizingToOpenButton then
 		self.Root.Size = expandedSize
 		if self._updateResponsive then
